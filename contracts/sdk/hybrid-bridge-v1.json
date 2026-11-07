@@ -1,0 +1,33 @@
+{
+  "contract": "hybrid-bridge-v1",
+  "status": "draft",
+  "origin": "D-22a: surface that the Flutter plugin already exposes between its Dart layer and the native Android SDK; the React Native, Capacitor/Cordova/Ionic and .NET MAUI layers (D-22a..c) replicate this set and add no logic of their own",
+  "reference": "sdk/flutter/sentomaru_flutter (MethodChannel `sentomaru_flutter`)",
+  "methods": [
+    {"name": "initialize", "args": ["organization", "app", "environment", "enrollmentUrl", "allowedHosts", "rotationGracePeriodDays", "playIntegrityCloudProjectNumber", "renewalUrl", "reattestationChallengeUrl", "reattestationSubmitUrl", "reattestationMinIntervalSeconds"], "reply": "void"},
+    {"name": "state", "args": [], "reply": "string"},
+    {"name": "reenrollmentReason", "args": [], "reply": "string?"},
+    {"name": "enroll", "args": ["challenge", "strongBox", "requiresHardware"], "reply": "map"},
+    {"name": "rotate", "args": ["challenge", "strongBox", "requiresHardware"], "reply": "map"},
+    {"name": "sign", "args": ["method", "targetUri", "operation", "body", "optional"], "reply": "map"},
+    {"name": "reset", "args": [], "reply": "void"},
+    {"name": "collectSignals", "args": [], "reply": "list"},
+    {"name": "collectSignalsSnapshot", "args": ["rasp", "expectedSignerDigests"], "reply": "map"},
+    {"name": "sessionId", "args": [], "reply": "string?"},
+    {"name": "renewSession", "args": [], "reply": "string"},
+    {"name": "reattestationDue", "args": [], "reply": "bool"},
+    {"name": "reattestIfDue", "args": ["strongBox"], "reply": "map"},
+    {"name": "reattest", "args": ["strongBox"], "reply": "map"},
+    {"name": "sealedConfigure", "args": ["allowPlainFallback", "plainStringsKey"], "reply": "void"},
+    {"name": "sealedLoad", "args": ["key"], "reply": "bytes"},
+    {"name": "sealedString", "args": ["key"], "reply": "string"}
+  ],
+  "flutterOnly": ["scaffoldInfo"],
+  "bridgeErrorCodes": ["Cancelled", "ChannelError", "ConfigurationError", "InvalidArgument", "AssetNotFound", "NoActivity", "NotInitialized", "InvalidRequest:PARAMS"],
+  "notes": [
+    "Any other error code is the stable `code` of an SDK error (SentomaruError, EnrollmentError) forwarded as is.",
+    "A `bytes` value (sign.body in, sealedLoad out) crosses a text channel as canonical RFC 4648 section 4 Base64: standard alphabet, padding, no whitespace, no non-zero trailing bits. A reader refuses any other text as ChannelError, or IllegalArgumentException from the Kotlin adapters on the way in (shared sdk/hybrid-core CanonicalBase64; vectors: hybrid-bridge-v1-vectors.json, bytes and bytesRejected).",
+    "A hybrid layer adds no method, no default and no retry: a method missing here is a change of this contract first.",
+    "iOS of each layer only after the layer's Android gate (D-22, D-09/D-10 are done)."
+  ]
+}

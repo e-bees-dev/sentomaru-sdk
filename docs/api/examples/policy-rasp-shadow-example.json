@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyId": "pol_rasp_lab_hml_shadow_v1",
+  "version": "1.0.0",
+  "organization": "ebees",
+  "app": "rasp-lab",
+  "environment": "hml",
+  "enforcementMode": "shadow",
+  "description": "Exemplo D-05f: sinais RASP da D-05 (declarados pelo app) medidos em sombra. Nada é recusado; o veredito real é allow.",
+  "sensitiveOperations": [],
+  "rules": [
+    {
+      "ruleId": "rule_shadow_root_artifacts",
+      "name": "Sombra: indício de root declarado pelo app",
+      "priority": 10,
+      "action": "challenge",
+      "reasonCode": "RASP_ROOT_ARTIFACTS",
+      "conditions": {
+        "signalRules": [{ "capabilityId": "root_artifacts", "operator": "equals", "expectedState": "DETECTED" }]
+      }
+    },
+    {
+      "ruleId": "rule_shadow_hook_java",
+      "name": "Sombra: framework de hook Java declarado pelo app",
+      "priority": 20,
+      "action": "challenge",
+      "reasonCode": "RASP_HOOK_FRAMEWORK_JAVA",
+      "conditions": {
+        "signalRules": [{ "capabilityId": "hook_framework_java", "operator": "equals", "expectedState": "DETECTED" }]
+      }
+    },
+    {
+      "ruleId": "rule_shadow_debugger",
+      "name": "Sombra: depurador Java (JDWP) declarado pelo app",
+      "priority": 30,
+      "action": "challenge",
+      "reasonCode": "RASP_DEBUGGER_ATTACHED",
+      "conditions": {
+        "signalRules": [{ "capabilityId": "debugger_attached", "operator": "equals", "expectedState": "DETECTED" }]
+      }
+    },
+    {
+      "ruleId": "rule_shadow_emulator",
+      "name": "Sombra: indício de emulador declarado pelo app",
+      "priority": 40,
+      "action": "challenge",
+      "reasonCode": "RASP_EMULATOR_INDICATED",
+      "conditions": {
+        "signalRules": [{ "capabilityId": "emulator_indicated", "operator": "equals", "expectedState": "DETECTED" }]
+      }
+    },
+    {
+      "ruleId": "rule_shadow_app_debuggable",
+      "name": "Sombra: app em execução com FLAG_DEBUGGABLE",
+      "priority": 50,
+      "action": "challenge",
+      "reasonCode": "RASP_APP_DEBUGGABLE",
+      "conditions": {
+        "signalRules": [{ "capabilityId": "app_debuggable", "operator": "equals", "expectedState": "DETECTED" }]
+      }
+    },
+    {
+      "ruleId": "rule_allow_default",
+      "name": "Permitir o resto",
+      "priority": 100,
+      "action": "allow",
+      "reasonCode": "POLICY_DEFAULT_ALLOW",
+      "conditions": {}
+    }
+  ]
+}

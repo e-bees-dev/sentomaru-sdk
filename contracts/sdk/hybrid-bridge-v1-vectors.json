@@ -1,0 +1,557 @@
+{
+  "contract": "hybrid-bridge-v1-vectors",
+  "note": "Written by verification/sdk/gen_hybrid_bridge_vectors.py. Read by sdk/android/signals (ScreenSignalsTest), sdk/cordova (SnapshotVectorsTest) and sdk/dotnet (SignalsAndEnvelopeTests, VectorsTests).",
+  "catalogVersion": "1.15.0",
+  "collectedAt": "2026-11-04T20:00:00Z",
+  "durationMs": 7,
+  "screenCapture": [
+    {
+      "name": "marked_no_screen_is_unknown",
+      "sdk": 35,
+      "scope": "marked",
+      "ops": [],
+      "observation": {
+        "capabilityId": "screen_capture",
+        "version": "1.1.0",
+        "state": "UNKNOWN",
+        "source": "client_observed",
+        "observedAt": "2026-11-04T20:00:00Z",
+        "detail": {
+          "result": "no_screens"
+        }
+      },
+      "expect": {
+        "state": "Unknown",
+        "result": "no_screens",
+        "captures": 0,
+        "capturesOther": null
+      },
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": [
+          {
+            "capabilityId": "screen_capture",
+            "version": "1.1.0",
+            "state": "unknown",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {
+              "result": "no_screens"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "marked_screen_without_capture",
+      "sdk": 35,
+      "scope": "marked",
+      "ops": [
+        "arm"
+      ],
+      "observation": {
+        "capabilityId": "screen_capture",
+        "version": "1.1.0",
+        "state": "NOT_DETECTED",
+        "source": "client_observed",
+        "observedAt": "2026-11-04T20:00:00Z",
+        "detail": {
+          "result": "none",
+          "captures": "0"
+        }
+      },
+      "expect": {
+        "state": "NotDetected",
+        "result": "none",
+        "captures": 0,
+        "capturesOther": null
+      },
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": [
+          {
+            "capabilityId": "screen_capture",
+            "version": "1.1.0",
+            "state": "not_detected",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {
+              "result": "none",
+              "captures": "0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "marked_three_captures",
+      "sdk": 35,
+      "scope": "marked",
+      "ops": [
+        "arm",
+        "capture",
+        "capture",
+        "capture"
+      ],
+      "observation": {
+        "capabilityId": "screen_capture",
+        "version": "1.1.0",
+        "state": "DETECTED",
+        "source": "client_observed",
+        "observedAt": "2026-11-04T20:00:00Z",
+        "detail": {
+          "result": "captured",
+          "captures": "3"
+        }
+      },
+      "expect": {
+        "state": "Detected",
+        "result": "captured",
+        "captures": 3,
+        "capturesOther": null
+      },
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": [
+          {
+            "capabilityId": "screen_capture",
+            "version": "1.1.0",
+            "state": "detected",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {
+              "result": "captured",
+              "captures": "3"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "marked_count_is_capped_at_nine",
+      "sdk": 35,
+      "scope": "marked",
+      "ops": [
+        "arm",
+        "capture",
+        "capture",
+        "capture",
+        "capture",
+        "capture",
+        "capture",
+        "capture",
+        "capture",
+        "capture",
+        "capture",
+        "capture",
+        "capture"
+      ],
+      "observation": {
+        "capabilityId": "screen_capture",
+        "version": "1.1.0",
+        "state": "DETECTED",
+        "source": "client_observed",
+        "observedAt": "2026-11-04T20:00:00Z",
+        "detail": {
+          "result": "captured",
+          "captures": "9"
+        }
+      },
+      "expect": {
+        "state": "Detected",
+        "result": "captured",
+        "captures": 9,
+        "capturesOther": null
+      },
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": [
+          {
+            "capabilityId": "screen_capture",
+            "version": "1.1.0",
+            "state": "detected",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {
+              "result": "captured",
+              "captures": "9"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "below_api_34_is_unsupported",
+      "sdk": 33,
+      "scope": "marked",
+      "ops": [
+        "arm"
+      ],
+      "observation": {
+        "capabilityId": "screen_capture",
+        "version": "1.1.0",
+        "state": "UNSUPPORTED",
+        "source": "client_observed",
+        "observedAt": "2026-11-04T20:00:00Z",
+        "detail": {}
+      },
+      "expect": {
+        "state": "Unsupported",
+        "result": null,
+        "captures": null,
+        "capturesOther": null
+      },
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": [
+          {
+            "capabilityId": "screen_capture",
+            "version": "1.1.0",
+            "state": "unsupported",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "all_unmarked_screen_without_capture",
+      "sdk": 35,
+      "scope": "all",
+      "ops": [
+        "arm_other"
+      ],
+      "observation": {
+        "capabilityId": "screen_capture",
+        "version": "1.1.0",
+        "state": "NOT_DETECTED",
+        "source": "client_observed",
+        "observedAt": "2026-11-04T20:00:00Z",
+        "detail": {
+          "result": "none",
+          "captures": "0",
+          "captures_other": "0"
+        }
+      },
+      "expect": {
+        "state": "NotDetected",
+        "result": "none",
+        "captures": 0,
+        "capturesOther": 0
+      },
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": [
+          {
+            "capabilityId": "screen_capture",
+            "version": "1.1.0",
+            "state": "not_detected",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {
+              "result": "none",
+              "captures": "0",
+              "captures_other": "0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "all_capture_with_unmarked_screen_only",
+      "sdk": 35,
+      "scope": "all",
+      "ops": [
+        "arm_other",
+        "capture_other",
+        "capture_other"
+      ],
+      "observation": {
+        "capabilityId": "screen_capture",
+        "version": "1.1.0",
+        "state": "DETECTED",
+        "source": "client_observed",
+        "observedAt": "2026-11-04T20:00:00Z",
+        "detail": {
+          "result": "captured",
+          "captures": "0",
+          "captures_other": "2"
+        }
+      },
+      "expect": {
+        "state": "Detected",
+        "result": "captured",
+        "captures": 0,
+        "capturesOther": 2
+      },
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": [
+          {
+            "capabilityId": "screen_capture",
+            "version": "1.1.0",
+            "state": "detected",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {
+              "result": "captured",
+              "captures": "0",
+              "captures_other": "2"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "all_both_counts_and_cap",
+      "sdk": 35,
+      "scope": "all",
+      "ops": [
+        "arm",
+        "capture",
+        "arm_other",
+        "capture_other",
+        "capture_other",
+        "capture_other",
+        "capture_other",
+        "capture_other",
+        "capture_other",
+        "capture_other",
+        "capture_other",
+        "capture_other",
+        "capture_other",
+        "capture_other"
+      ],
+      "observation": {
+        "capabilityId": "screen_capture",
+        "version": "1.1.0",
+        "state": "DETECTED",
+        "source": "client_observed",
+        "observedAt": "2026-11-04T20:00:00Z",
+        "detail": {
+          "result": "captured",
+          "captures": "1",
+          "captures_other": "9"
+        }
+      },
+      "expect": {
+        "state": "Detected",
+        "result": "captured",
+        "captures": 1,
+        "capturesOther": 9
+      },
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": [
+          {
+            "capabilityId": "screen_capture",
+            "version": "1.1.0",
+            "state": "detected",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {
+              "result": "captured",
+              "captures": "1",
+              "captures_other": "9"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "snapshots": [
+    {
+      "name": "one_screen_capture_observation",
+      "observations": [
+        {
+          "capabilityId": "screen_capture",
+          "version": "1.1.0",
+          "state": "UNKNOWN",
+          "source": "client_observed",
+          "observedAt": "2026-11-04T20:00:00Z",
+          "detail": {
+            "result": "no_screens"
+          }
+        }
+      ],
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": [
+          {
+            "capabilityId": "screen_capture",
+            "version": "1.1.0",
+            "state": "unknown",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {
+              "result": "no_screens"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "two_observations_one_without_detail",
+      "observations": [
+        {
+          "capabilityId": "screen_capture",
+          "version": "1.1.0",
+          "state": "DETECTED",
+          "source": "client_observed",
+          "observedAt": "2026-11-04T20:00:00Z",
+          "detail": {
+            "result": "captured",
+            "captures": "1"
+          }
+        },
+        {
+          "capabilityId": "root_artifacts",
+          "version": "1.0.0",
+          "state": "UNSUPPORTED",
+          "source": "client_observed",
+          "observedAt": "2026-11-04T20:00:00Z",
+          "detail": {}
+        }
+      ],
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": [
+          {
+            "capabilityId": "screen_capture",
+            "version": "1.1.0",
+            "state": "detected",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {
+              "result": "captured",
+              "captures": "1"
+            }
+          },
+          {
+            "capabilityId": "root_artifacts",
+            "version": "1.0.0",
+            "state": "unsupported",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {}
+          }
+        ]
+      }
+    },
+    {
+      "name": "partial_detail_is_text",
+      "observations": [
+        {
+          "capabilityId": "root_artifacts",
+          "version": "1.0.0",
+          "state": "UNKNOWN",
+          "source": "client_observed",
+          "observedAt": "2026-11-04T20:00:00Z",
+          "detail": {
+            "partial": "root_package"
+          }
+        }
+      ],
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": [
+          {
+            "capabilityId": "root_artifacts",
+            "version": "1.0.0",
+            "state": "unknown",
+            "source": "client_observed",
+            "observedAt": "2026-11-04T20:00:00Z",
+            "data": {
+              "partial": "root_package"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "no_observation",
+      "observations": [],
+      "reply": {
+        "collectedAt": "2026-11-04T20:00:00Z",
+        "durationMs": 7,
+        "observations": []
+      }
+    }
+  ],
+  "bytes": [
+    {
+      "hex": "",
+      "base64": ""
+    },
+    {
+      "hex": "00ff10",
+      "base64": "AP8Q"
+    },
+    {
+      "hex": "010203",
+      "base64": "AQID"
+    },
+    {
+      "hex": "fffefd",
+      "base64": "//79"
+    },
+    {
+      "hex": "00000000000000",
+      "base64": "AAAAAAAAAA=="
+    }
+  ],
+  "bytesRejected": [
+    {
+      "name": "leading_space",
+      "base64": " AQID"
+    },
+    {
+      "name": "trailing_newline",
+      "base64": "AQID\n"
+    },
+    {
+      "name": "inner_space",
+      "base64": "AQI D"
+    },
+    {
+      "name": "crlf_inside",
+      "base64": "AQID\r\nAQID"
+    },
+    {
+      "name": "padding_missing",
+      "base64": "AQI"
+    },
+    {
+      "name": "padding_extra",
+      "base64": "AQID="
+    },
+    {
+      "name": "url_safe_alphabet",
+      "base64": "-_8="
+    },
+    {
+      "name": "non_zero_trailing_bits",
+      "base64": "AR=="
+    },
+    {
+      "name": "not_text_at_all",
+      "base64": "!!!!"
+    },
+    {
+      "name": "padding_only",
+      "base64": "===="
+    }
+  ]
+}

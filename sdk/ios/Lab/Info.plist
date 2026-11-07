@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key><string>com.example.app</string>
+  <key>CFBundleExecutable</key><string>SentomaruLab</string>
+  <key>CFBundleName</key><string>SentomaruLab</string>
+  <key>CFBundleDisplayName</key><string>Sentomaru Lab</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>0.0.1</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>MinimumOSVersion</key><string>15.0</string>
+  <key>UIDeviceFamily</key><array><integer>1</integer></array>
+  <key>UILaunchScreen</key><dict/>
+  <key>UIApplicationSceneManifest</key><dict>
+    <key>UIApplicationSupportsMultipleScenes</key><false/>
+    <key>UISceneConfigurations</key><dict>
+      <key>UIWindowSceneSessionRoleApplication</key><array><dict>
+        <key>UISceneConfigurationName</key><string>Default</string>
+        <key>UISceneDelegateClassName</key><string>LabSceneDelegate</string>
+      </dict></array>
+    </dict>
+  </dict>
+  <key>NSFaceIDUsageDescription</key><string>Laboratorio G-03: prova a chave transacional protegida por Face ID no Secure Enclave. Sem isso o iOS encerra o app (TCC) no primeiro pedido biometrico.</string>
+  <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
+</dict>
+</plist>

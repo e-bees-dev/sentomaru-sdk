@@ -1,0 +1,3 @@
+jsonschema==4.25.1
+# rpds-py (via referencing) pinned to a release older than two weeks.
+rpds-py==2026.6.3

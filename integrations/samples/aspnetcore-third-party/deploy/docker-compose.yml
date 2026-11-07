@@ -1,0 +1,35 @@
+# C-09 (#142): the workload token reaches the backend container ONLY through an env file rendered by the secret
+# store's agent. Nothing secret in this file, in the image or in the repository.
+#
+# Order: `sentomaru-render` (one-shot agent, exit_after_auth) renders the file and exits; `api` starts only after it
+# completed successfully (depends_on), so the container never starts without the credential.
+# Rotation: docker reads env_file when it CREATES the container. After rotating the token in the secret store, render
+# again and recreate the api:  docker compose run --rm sentomaru-render && docker compose up -d --force-recreate api
+services:
+  sentomaru-render:
+    image: hashicorp/vault:1.18.3
+    command: ["agent", "-config=/agent/agent.hcl"]
+    volumes:
+      - ./agent.hcl:/agent/agent.hcl:ro
+      - ./sentomaru.env.ctmpl:/agent/sentomaru.env.ctmpl:ro
+      - ${AGENT_AUTH_DIR:-/opt/minha-api/agent-auth}:/agent/auth:ro      # role-id / secret-id of a read-only AppRole
+      - ${RENDERED_DIR:-/opt/minha-api/rendered}:/rendered
+    restart: "no"
+
+  api:
+    image: registry.example/minha-api:1.0.0
+    depends_on:
+      sentomaru-render:
+        condition: service_completed_successfully
+    env_file:
+      - ${RENDERED_DIR:-/opt/minha-api/rendered}/sentomaru.env           # rendered by the agent, 0600, never versioned
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Sentomaru__Enabled: "true"
+      Sentomaru__FailOpen: "false"
+      Sentomaru__BaseAddress: https://sentomaru.example
+      Sentomaru__PublicBaseUrl: https://api.minha-empresa.example
+      Sentomaru__Org: minha-org
+      Sentomaru__App: meu-app
+      Sentomaru__Env: prod
+    restart: always

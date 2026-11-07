@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- G-03: debug builds only. The device test of the transaction key shows the platform BiometricPrompt, which needs this
+         permission in the app under test (instrumentation runs with the app's identity). Never in release. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <application>
+        <!-- G-03 P-4: probe screen for the instrumented touch test. Debug builds only; it must live in the app under test
+             (an activity of the test APK runs in another process and cannot share the monitor). -->
+        <activity android:name="br.com.ebees.sentomaru.g03.TouchProbeActivity" android:exported="false" />
+    </application>
+</manifest>

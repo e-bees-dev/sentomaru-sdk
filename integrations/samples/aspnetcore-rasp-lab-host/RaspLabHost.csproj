@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Item 16 / P-1: the laboratory host of the device round. It is the third-party sample
+       (../aspnetcore-third-party) plus a laboratory login and a self-signed certificate, for the scope ebees/rasp-lab/hml only.
+       Never deployed: it runs for the window of the round, with ASPNETCORE_ENVIRONMENT=Development, on the lab network. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>RaspLabHost</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../aspnetcore-third-party/ThirdPartyApi.csproj" />
+  </ItemGroup>
+</Project>

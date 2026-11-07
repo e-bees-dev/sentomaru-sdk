@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyId": "pol_integrity_lab_hml_risk_observe_v1",
+  "version": "1.0.0",
+  "organization": "ebees",
+  "app": "integrity-lab",
+  "environment": "hml",
+  "enforcementMode": "active",
+  "description": "Exemplo D-T1a: Índice de Risco sem calibração, só contado (observe) para medir falsos positivos antes de recusar.",
+  "rules": [
+    {
+      "ruleId": "rule_risk_index_high",
+      "name": "Índice de Risco na faixa alta",
+      "priority": 900,
+      "action": "deny",
+      "reasonCode": "RISK_INDEX_HIGH",
+      "stage": "observe",
+      "conditions": {
+        "riskIndex": { "model": "risk-index-v1", "band": "HIGH" }
+      }
+    },
+    {
+      "ruleId": "rule_allow_default",
+      "name": "Permitir o restante",
+      "priority": 1000,
+      "action": "allow",
+      "reasonCode": "POLICY_DEFAULT_ALLOW",
+      "conditions": {}
+    }
+  ]
+}

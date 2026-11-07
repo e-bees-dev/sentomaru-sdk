@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1",
+  "kind": "protect",
+  "profileId": "sealed-lab-hml-protect",
+  "scope": { "organization": "ebees", "app": "sealed-lab", "environment": "hml" },
+  "controls": {
+    "build-obfuscation": { "version": "1" },
+    "asset-encryption": {
+      "version": "1",
+      "assets": ["assets/regras/tabela.json", "assets/flutter_assets/assets/dados/catalogo.bin"],
+      "strings": "assets/sentomaru-strings.json"
+    }
+  }
+}

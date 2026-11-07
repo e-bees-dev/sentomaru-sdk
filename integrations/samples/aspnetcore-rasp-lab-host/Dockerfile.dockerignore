@@ -1,0 +1,10 @@
+# The repository's .dockerignore allows only the API container; this one (BuildKit reads <Dockerfile>.dockerignore) allows
+# only what the laboratory host builds from.
+**
+!Directory.Build.props
+!Directory.Packages.props
+!integrations/aspnetcore/**
+!integrations/samples/aspnetcore-third-party/**
+!integrations/samples/aspnetcore-rasp-lab-host/**
+**/bin
+**/obj

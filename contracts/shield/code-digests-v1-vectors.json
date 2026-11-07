@@ -1,0 +1,78 @@
+{
+  "description": "D-12a code digests, algorithm apk-code-sha256-v1 (contracts/shield/registry-v1.md, 'Code digests'). Synthetic entry bytes (hex), their per-file SHA-256, the codeDigests value of POST /builds and the aggregate of algorithm v1. Shared by the .NET tests and tools/shield/code_digests.py tests. Ordinal order: classes.dex < classes10.dex < classes2.dex, lib/arm64-v8a < lib/armeabi-v7a < lib/x86_64.",
+  "algorithm": "apk-code-sha256-v1",
+  "entries": [
+    {
+      "path": "classes.dex",
+      "bytesHex": "6465780a30333500636c61737365732d6f6e65"
+    },
+    {
+      "path": "classes10.dex",
+      "bytesHex": "6465780a30333500636c61737365732d74656e"
+    },
+    {
+      "path": "classes2.dex",
+      "bytesHex": "6465780a30333500636c61737365732d74776f"
+    },
+    {
+      "path": "lib/arm64-v8a/libapp.so",
+      "bytesHex": "7f454c462061726d3634206c6962617070"
+    },
+    {
+      "path": "lib/arm64-v8a/libflutter.so",
+      "bytesHex": "7f454c462061726d3634206c6962666c7574746572"
+    },
+    {
+      "path": "lib/armeabi-v7a/libapp.so",
+      "bytesHex": "7f454c462061726d7637206c6962617070"
+    },
+    {
+      "path": "lib/x86_64/libapp.so",
+      "bytesHex": "7f454c46207838365f3634206c6962617070"
+    }
+  ],
+  "ignoredEntries": [
+    "AndroidManifest.xml",
+    "resources.arsc",
+    "assets/flutter_assets/kernel_blob.bin",
+    "lib/arm64-v8a/sub/libnested.so",
+    "classes1.dex",
+    "classes02.dex",
+    "META-INF/CERT.SF",
+    "assets/lib.so"
+  ],
+  "codeDigests": {
+    "algorithm": "apk-code-sha256-v1",
+    "files": [
+      {
+        "path": "classes.dex",
+        "sha256": "1fb62af189d598f090cab232328657303f1e66b809228cc1a58d68d04dd7ab8e"
+      },
+      {
+        "path": "classes10.dex",
+        "sha256": "33c3b684aac64b55d6aef627b3cd230c2c3f6f81d80dc1dad603c4ab502ca83a"
+      },
+      {
+        "path": "classes2.dex",
+        "sha256": "2fd54317d048d95ce369a04876694a3aaf9a5a9e1f89e1ec1665fb23a909a1a4"
+      },
+      {
+        "path": "lib/arm64-v8a/libapp.so",
+        "sha256": "615de77fc50cf465b43a542493253abbc1d70cc28ecb71a7f3d3556866657a56"
+      },
+      {
+        "path": "lib/arm64-v8a/libflutter.so",
+        "sha256": "fad233af3607db22b09d8d577b1536667f9f89d78b9659cbed7ec692d2a809fa"
+      },
+      {
+        "path": "lib/armeabi-v7a/libapp.so",
+        "sha256": "40e372a275404cf0c2daa94667e331ad5811423594122606523f48799414ca74"
+      },
+      {
+        "path": "lib/x86_64/libapp.so",
+        "sha256": "8edd34e9675622028bed9e00c6af75f6f692b6d209e492e3bde96dcf1bbfbfd6"
+      }
+    ]
+  },
+  "aggregate": "8115fa3e96e9a7f96318d3767476d8e534e72bba23e265d238f781f5ea89da2b"
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- minimal Cordova app that calls the Sentomaru plugin. Not published; not a product. -->
+<widget id="br.com.ebees.sentomaru.example" version="0.0.0" xmlns="http://www.w3.org/ns/widgets">
+  <name>SentomaruCordovaExample</name>
+  <description>Calls the Sentomaru plugin (sdk/cordova).</description>
+  <content src="index.html" />
+  <access origin="https://api.example.test" />
+  <allow-navigation href="'none'" />
+  <platform name="android">
+    <preference name="minSdkVersion" value="28" />
+  </platform>
+</widget>

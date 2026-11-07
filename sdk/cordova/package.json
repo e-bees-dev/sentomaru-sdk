@@ -1,0 +1,8 @@
+{
+  "name": "@ebees/sentomaru-cordova",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Sentomaru SDK for Cordova. Thin layer over the Android SDK; not published to a public registry.",
+  "cordova": { "id": "br.com.ebees.sentomaru.cordova", "platforms": ["android"] },
+  "scripts": { "test": "node --test test/" }
+}

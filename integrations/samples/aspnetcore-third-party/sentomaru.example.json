@@ -1,0 +1,10 @@
+{
+  "Sentomaru": {
+    "BaseAddress": "https://sentomaru.example.invalid",
+    "PublicBaseUrl": "https://api.example.invalid",
+    "Org": "minha-org",
+    "App": "meu-app",
+    "Env": "prod",
+    "Timeout": "00:00:02"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyId": "pol_rasp_lab_hml_ladder_v1",
+  "version": "2.0.0",
+  "organization": "ebees",
+  "app": "rasp-lab",
+  "environment": "hml",
+  "enforcementMode": "active",
+  "description": "Exemplo D-06a: degraus por regra. Emulador só contado (observe); root declarado pede step-up ao consumidor; identidade do app verificada pelo servidor recusa.",
+  "sensitiveOperations": [],
+  "rules": [
+    {
+      "ruleId": "rule_observe_emulator",
+      "name": "Contar: emulador declarado pelo app",
+      "priority": 10,
+      "action": "challenge",
+      "reasonCode": "RASP_EMULATOR_INDICATED",
+      "stage": "observe",
+      "conditions": {
+        "signalRules": [{ "capabilityId": "emulator_indicated", "operator": "equals", "expectedState": "DETECTED" }]
+      }
+    },
+    {
+      "ruleId": "rule_stepup_root_artifacts",
+      "name": "Desafiar (step-up do consumidor): root declarado pelo app",
+      "priority": 20,
+      "action": "challenge",
+      "reasonCode": "RASP_ROOT_ARTIFACTS",
+      "stage": "enforce",
+      "challengeKind": "step_up",
+      "conditions": {
+        "signalRules": [{ "capabilityId": "root_artifacts", "operator": "equals", "expectedState": "DETECTED" }]
+      }
+    },
+    {
+      "ruleId": "rule_deny_app_identity",
+      "name": "Recusar: identidade do app divergente (verificada pelo servidor)",
+      "priority": 30,
+      "action": "deny",
+      "reasonCode": "APP_IDENTITY_MISMATCH",
+      "stage": "enforce",
+      "conditions": {
+        "signalRules": [{ "capabilityId": "app_identity_mismatch", "operator": "equals", "expectedState": "DETECTED" }]
+      }
+    },
+    {
+      "ruleId": "rule_allow_default",
+      "name": "Permitir chamadas sem achado",
+      "priority": 100,
+      "action": "allow",
+      "reasonCode": "POLICY_DEFAULT_ALLOW",
+      "conditions": {}
+    }
+  ]
+}

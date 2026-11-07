@@ -1,0 +1,209 @@
+# `sentomaru protect` as a GitHub Action — a thin shell over the CLI (contracts/devsecops/cli-v1.md). It adds no
+# logic of its own: verify the CLI distribution (tools/devsecops/verify_cli.py: pinned cosign, pinned release key,
+# signed repository/ref/workflow/version, build type, SHA256SUMS) and only then unpack it, run the CLI with the
+# caller's inputs, keep the report as an artifact, and fail with the CLI's exit code.
+#
+# Current state: `dry-run: "true"` is the compatibility gate. The real run (`dry-run: "false"`)
+# protects an AAB: entitlement check and run registration through the API (SENTOMARU_BUILDER_TOKEN and SENTOMARU_API
+# in the job environment), runtime injection, `sign: openbao` (key in the client's OpenBao),
+# `keystore` (passwords from the environment) or `none`. Network signing is one line in the app (SDK or plugin);
+# the CLI only checks that it is linked. Still missing: APK input. Distribution: `cli-v<version>` releases
+# of e-bees-dev/sentomaru-sdk (contracts/devsecops/cli-distribution-v1.md); the caller downloads them before this Action, or leaves
+# `distribution` empty and this Action downloads release `cli-v<version>` itself (tools/devsecops/download_cli.py; needs a
+# `token`; the default workflow token is enough because the release repository is public). Either way the bytes are untrusted until verify_cli.py passes.
+name: sentomaru protect
+description: Post-build protection of an APK/AAB with the Sentomaru CLI, from a verified distribution.
+inputs:
+  distribution:
+    description: >-
+      Directory with sentomaru-protect-<version>.zip, SHA256SUMS, statement.json and signature.sigstore.json, already
+      downloaded by the caller. Empty (default): the Action downloads release cli-v<version> of release-repository
+      (needs token) into a fresh directory and verifies it the same way.
+    required: false
+    default: ""
+  token:
+    description: >-
+      GitHub token with read access to the releases of release-repository; used only when distribution is empty. Passed
+      through the environment, never on a command line. Not a trust anchor: what it fetches is verified before use.
+    required: false
+    default: ""
+  release-repository:
+    description: owner/name of the repository whose cli-v<version> release is downloaded (distribution empty only)
+    required: false
+    default: e-bees-dev/sentomaru-sdk
+  release-api-url:
+    description: GitHub REST API base URL for the download (https only, or a loopback address for tests)
+    required: false
+    default: https://api.github.com
+  version:
+    description: CLI version (the signed versionName), for example 0.2.0
+    required: true
+  key:
+    description: Path to the release public key (PEM)
+    required: true
+  key-sha256:
+    description: SHA-256 of the release key, obtained through a channel other than the one serving the files
+    required: true
+  input:
+    description: The APK or AAB to protect
+    required: true
+  profile:
+    description: The protect-profile v1 file
+    required: true
+  out:
+    description: Output directory (the report is <out>/report.json)
+    required: false
+    default: build/sentomaru
+  dry-run:
+    description: '"true" (default): validate and plan only, the contractual mode today'
+    required: false
+    default: "true"
+  sign:
+    description: none | keystore | openbao (required for an APK; for keystore/openbao pass the options in extra-args)
+    required: false
+    default: ""
+  extra-args:
+    description: More CLI options, space separated (signing options)
+    required: false
+    default: ""
+  fail:
+    description: '"true" (default) fails the step with the CLI exit code; "false" only publishes the outputs'
+    required: false
+    default: "true"
+  report-name:
+    description: Name of the uploaded report artifact
+    required: false
+    default: sentomaru-protect-report
+  cosign:
+    description: Path to a cosign binary; empty downloads the pinned v3.1.3 (linux-amd64)
+    required: false
+    default: ""
+  cosign-sha256:
+    description: SHA-256 pin of the cosign binary
+    required: false
+    default: 4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71
+  expect-repository:
+    description: owner/name of the PRIVATE builder repository that signs the releases (statement `repository`, OIDC identity); not the public distribution repository in release-repository
+    required: false
+    default: e-bees-dev/Sentomaru
+  expect-ref:
+    required: false
+    default: refs/heads/main
+  expect-workflow-path:
+    required: false
+    default: .github/workflows/cli-release.yml
+outputs:
+  verify-error:
+    description: 'The verifier refusal (for example cli-invalid: artifact-not-in-statement) when the distribution does not verify; empty otherwise'
+    value: ${{ steps.cli.outputs.verify-error }}
+  exit-code:
+    description: Exit code of sentomaru protect (0 = compatible / protected); empty when the CLI did not run
+    value: ${{ steps.protect.outputs.exit-code }}
+  code:
+    description: First error code of the report (empty on success or when the CLI did not run)
+    value: ${{ steps.protect.outputs.code }}
+runs:
+  using: composite
+  steps:
+    - name: Verify and unpack the CLI distribution
+      id: cli
+      shell: bash
+      env:
+        DIST: ${{ inputs.distribution }}
+        SENTOMARU_DOWNLOAD_TOKEN: ${{ inputs.token }}
+        RELEASE_REPOSITORY: ${{ inputs.release-repository }}
+        RELEASE_API_URL: ${{ inputs.release-api-url }}
+        VERSION: ${{ inputs.version }}
+        OUT: ${{ inputs.out }}
+        KEY: ${{ inputs.key }}
+        KEY_SHA256: ${{ inputs.key-sha256 }}
+        COSIGN: ${{ inputs.cosign }}
+        COSIGN_SHA256: ${{ inputs.cosign-sha256 }}
+        EXPECT_REPOSITORY: ${{ inputs.expect-repository }}
+        EXPECT_REF: ${{ inputs.expect-ref }}
+        EXPECT_WORKFLOW_PATH: ${{ inputs.expect-workflow-path }}
+      run: |
+        set -euo pipefail
+        rm -f "$OUT/verify-error.txt"
+        fail_verify() {
+          local reason
+          reason=$(printf '%s' "$1" | tr -cd 'a-z0-9: -' | head -c 200)
+          echo "verify-error=$reason" >> "$GITHUB_OUTPUT"
+          # Also next to where the report would be, for callers that read files rather than outputs.
+          mkdir -p "$OUT" && printf '%s\n' "$reason" > "$OUT/verify-error.txt"
+          echo "::error::cli-distribution-not-verified:$(printf '%s' "$reason" | tr -cd 'a-z0-9:-')"
+          exit 1
+        }
+        if [[ -z "$DIST" ]]; then
+          # No caller download. Untrusted bytes into a fresh directory; verify_cli.py below judges them.
+          DIST="$RUNNER_TEMP/sentomaru-dl-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$RANDOM"
+          derr="$RUNNER_TEMP/sentomaru-dl-$GITHUB_RUN_ID-$RANDOM.err"
+          if ! python3 "$GITHUB_ACTION_PATH/../../tools/devsecops/download_cli.py" --version "$VERSION" \
+            --repository "$RELEASE_REPOSITORY" --api-url "$RELEASE_API_URL" --dest "$DIST" > /dev/null 2> "$derr"; then
+            fail_verify "$(tail -n 1 "$derr")"
+          fi
+        fi
+        unset SENTOMARU_DOWNLOAD_TOKEN
+        if [[ -z "$COSIGN" ]]; then
+          COSIGN="$RUNNER_TEMP/sentomaru-cosign/cosign"
+          mkdir -p "$(dirname "$COSIGN")"
+          curl -fsSL https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-amd64 -o "$COSIGN"
+          chmod +x "$COSIGN"
+        fi
+        dest="$RUNNER_TEMP/sentomaru-cli-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$RANDOM"
+        errors="$RUNNER_TEMP/sentomaru-verify-$GITHUB_RUN_ID-$RANDOM.err"
+        if ! launcher=$(python3 "$GITHUB_ACTION_PATH/../../tools/devsecops/verify_cli.py" --dist "$DIST" --version "$VERSION" \
+          --key "$KEY" --key-sha256 "$KEY_SHA256" --cosign "$COSIGN" --cosign-sha256 "$COSIGN_SHA256" --dest "$dest" \
+          --expect-repository "$EXPECT_REPOSITORY" --expect-ref "$EXPECT_REF" --expect-workflow-path "$EXPECT_WORKFLOW_PATH" 2> "$errors"); then
+          fail_verify "$(tail -n 1 "$errors")"
+        fi
+        echo "launcher=$launcher" >> "$GITHUB_OUTPUT"
+    - name: sentomaru protect
+      id: protect
+      shell: bash
+      env:
+        LAUNCHER: ${{ steps.cli.outputs.launcher }}
+        INPUT: ${{ inputs.input }}
+        PROFILE: ${{ inputs.profile }}
+        OUT: ${{ inputs.out }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        SIGN: ${{ inputs.sign }}
+        EXTRA: ${{ inputs.extra-args }}
+      run: |
+        set -uo pipefail
+        # A report left by an earlier run must never be read as this run's.
+        rm -f "$OUT/report.json"
+        args=(protect --input "$INPUT" --profile "$PROFILE" --out "$OUT")
+        case "$DRY_RUN" in true) args+=(--dry-run) ;; false) ;; *) echo "dry-run must be true or false" >&2; exit 2 ;; esac
+        [[ -n "$SIGN" ]] && args+=(--sign "$SIGN")
+        # extra-args is a space separated option list; split on spaces only, never glob-expanded.
+        if [[ -n "$EXTRA" ]]; then set -f; read -r -a extra <<< "$EXTRA"; set +f; args+=("${extra[@]}"); fi
+        # The composite shell runs with -e: capture the CLI's exit code instead of letting it end this step.
+        code=0
+        "$LAUNCHER" "${args[@]}" || code=$?
+        first=$(python3 -c 'import json,sys
+        try:
+            errors = json.load(open(sys.argv[1])).get("errors") or []
+            print(errors[0].get("code", "") if errors else "")
+        except Exception:
+            print("")' "$OUT/report.json")
+        # Outputs first, so they exist whatever happens next (the step itself never fails here).
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        echo "code=$first" >> "$GITHUB_OUTPUT"
+        exit 0
+    - name: Keep the report
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: ${{ inputs.report-name }}
+        path: ${{ inputs.out }}/report.json
+        if-no-files-found: warn
+    - name: Fail with the CLI exit code
+      shell: bash
+      env:
+        CODE: ${{ steps.protect.outputs.exit-code }}
+        FAIL: ${{ inputs.fail }}
+      run: |
+        if [[ "$FAIL" == false ]]; then echo "sentomaru protect exited ${CODE:-(not run)}; fail: false"; exit 0; fi
+        if [[ -z "$CODE" ]]; then echo "sentomaru protect did not run" >&2; exit 1; fi
+        if [[ "$CODE" != 0 ]]; then echo "sentomaru protect exited $CODE (see the report artifact)" >&2; exit "$CODE"; fi

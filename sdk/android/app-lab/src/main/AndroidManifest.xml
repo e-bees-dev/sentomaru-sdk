@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lab-only: one empty activity (foreground host for the F-07 proof). Hosts instrumented tests for :signer and the F-07 proof (location permission is declared here only; the SDK never requests it). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <application
+        android:allowBackup="false"
+        android:label="Sentomaru Lab">
+        <activity android:name=".LabActivity" android:exported="false" />
+    </application>
+</manifest>

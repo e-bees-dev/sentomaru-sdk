@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sentomaru.ebees.com.br/schemas/sdk/signals-observation-schema-v1.json",
+  "title": "SentomaruSignalsSnapshotV1",
+  "type": "object",
+  "required": ["catalogVersion", "collectedAt", "durationMs", "observations"],
+  "properties": {
+    "catalogVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "collectedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["capabilityId", "version", "state", "source", "observedAt"],
+        "properties": {
+          "capabilityId": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{3,32}$"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+          },
+          "state": {
+            "type": "string",
+            "enum": ["DETECTED", "NOT_DETECTED", "UNKNOWN", "UNSUPPORTED", "ERROR", "STALE"]
+          },
+          "source": {
+            "type": "string",
+            "enum": ["client_observed", "platform_verified", "server_verified", "server_behavioral"]
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "detail": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

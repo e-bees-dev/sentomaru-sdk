@@ -1,0 +1,7 @@
+<!-- D-07e lab build only: the release template has no INTERNET permission (Flutter adds it
+     only to debug/profile), and the pinning proof needs the network. Merged into release only with
+     -Psentomaru.d07e=true (run_d07e_device.py passes ORG_GRADLE_PROJECT_sentomaru.d07e=true); the default build is
+     unchanged. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>

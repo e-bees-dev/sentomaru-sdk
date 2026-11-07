@@ -1,0 +1,35 @@
+buildscript {
+    ext {
+        buildToolsVersion = "35.0.0"
+        minSdkVersion = 28
+        compileSdkVersion = 36
+        targetSdkVersion = 34
+        ndkVersion = "28.2.13676358"
+        kotlinVersion = "1.9.25"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"
+
+allprojects {
+    // every resolvable configuration is locked in
+    // <project>/gradle.lockfile (and the build script classpath in settings-gradle.lockfile). Regenerate with
+    // ./gradlew --write-locks :app:assembleDebug.
+    dependencyLocking { lockAllConfigurations() }
+    repositories {
+        // The native SDK AARs (version 0.2.0-rc.1), built from sdk/android into build/repo; only this group comes from here.
+        exclusiveContent {
+            forRepository { maven { url = uri(rootProject.file("../../../android/build/repo")) } }
+            filter { includeGroup("br.com.ebees.sentomaru") }
+        }
+    }
+}

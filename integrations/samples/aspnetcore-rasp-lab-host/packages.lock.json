@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "sentomaru.aspnetcore": {
+        "type": "Project"
+      },
+      "thirdpartyapi": {
+        "type": "Project",
+        "dependencies": {
+          "Sentomaru.AspNetCore": "[4.9.0, )"
+        }
+      }
+    }
+  }
+}

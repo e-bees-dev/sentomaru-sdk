@@ -1,0 +1,22 @@
+{
+  "name": "@ebees/sentomaru-react-native",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Sentomaru SDK for React Native. Thin typed layer over the Android SDK; not published to a public registry.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "node --test test/",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "react-native": ">=0.76"
+  },
+  "codegenConfig": {
+    "name": "SentomaruSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": { "javaPackageName": "br.com.ebees.sentomaru.reactnative" }
+  }
+}

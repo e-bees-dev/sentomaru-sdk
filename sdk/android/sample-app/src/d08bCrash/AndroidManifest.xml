@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D-08b: lab-only crash trigger, present ONLY in the d08bRelease build (-Psentomaru.d08bRelease=true). The default
+     build, the CI lockfile and every other variant never see this activity. It throws a deterministic exception so the
+     emulator job (.github/workflows/d08b-symbolize-emulator.yml) can capture an R8-renamed stack from logcat and prove
+     `retrace` recovers the original names. Exported so `am start` can launch it; harmless unless launched with the
+     lab action below. Never published. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name="br.com.ebees.sentomaru.d08b.LabCrashActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="br.com.ebees.sentomaru.d08b.LAB_CRASH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

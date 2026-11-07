@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Shield #2: the library declares neither permission; the app that installs the ScreenShield does. Both are normal-protection. -->
+    <uses-permission android:name="android.permission.DETECT_SCREEN_CAPTURE" />
+    <uses-permission android:name="android.permission.DETECT_SCREEN_RECORDING" />
+    <application android:name=".GateApp" android:label="Sentomaru screen gate" android:allowBackup="false">
+        <activity android:name=".GateActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".OtherActivity" android:exported="true" />
+    </application>
+</manifest>

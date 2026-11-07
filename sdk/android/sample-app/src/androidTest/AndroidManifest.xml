@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D-07d: only the TEST APK carries the pinning meta-data (as `sentomaru protect` writes it), so PinnedHostsInstrumentedTest
+     can read it through the real PackageManager; the sample app itself has none (the CLI refuses an app that already has it). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <meta-data android:name="br.com.ebees.sentomaru.pinning.hosts" android:value="lab-pin.sentomaru.test,api.example.test" />
+    </application>
+</manifest>

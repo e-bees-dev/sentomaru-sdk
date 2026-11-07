@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sentomaru.com.br/contracts/devsecops/protect-profile-v1.schema.json",
+  "title": "Sentomaru protect profile v1 (G-03a)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "profileId", "scope", "controls"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "kind": { "const": "protect" },
+    "profileId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$" },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["organization", "app", "environment"],
+      "properties": {
+        "organization": { "type": "string", "pattern": "^[a-z0-9_-]{2,32}$" },
+        "app": { "type": "string", "pattern": "^[a-z0-9_-]{2,32}$" },
+        "environment": { "type": "string", "pattern": "^[a-z0-9_-]{2,32}$" }
+      }
+    },
+    "controls": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]{2,40}$" },
+      "properties": {
+        "runtime-injection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "enrollmentUrl"],
+          "properties": {
+            "version": { "type": "string", "pattern": "^[0-9]+$" },
+            "enrollmentUrl": { "type": "string", "pattern": "^https://" }
+          }
+        },
+        "network-signing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "hosts", "routes"],
+          "properties": {
+            "version": { "type": "string", "pattern": "^[0-9]+$" },
+            "hosts": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z0-9.-]{1,253}$" } },
+            "routes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["path", "operation"],
+                "properties": {
+                  "path": { "type": "string", "pattern": "^/" },
+                  "operation": { "type": "string", "pattern": "^[a-z0-9_]{1,64}$" }
+                }
+              }
+            }
+          }
+        },
+        "network-pinning": {
+          "$comment": "D-07a. Structure only. The CLI also checks what a schema cannot: expiration in the past or more than 180 days ahead (UTC clock of the run; warning under 30), a pin in both lists, more than 16 pins in one domain, a repeated host, a pin whose base64 is not canonical (last character with non-zero trailing bits) and a day that the month does not have when the validator does not assert `format` (the pattern bounds month and day only) (contracts/devsecops/cli-v1.md, network-pinning). `$(?!\\n)` ends the patterns because a Python `$` also matches before a final newline.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "expiration", "domains"],
+          "properties": {
+            "version": { "type": "string", "pattern": "^[0-9]+$(?!\\n)" },
+            "expiration": { "type": "string", "format": "date", "pattern": "^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])$(?!\\n)" },
+            "domains": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["host", "includeSubdomains", "pins", "backupPins"],
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "pattern": "^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$(?!\\n)"
+                  },
+                  "includeSubdomains": { "type": "boolean" },
+                  "pins": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 15,
+                    "uniqueItems": true,
+                    "items": { "type": "string", "pattern": "^sha256/[A-Za-z0-9+/]{43}=$(?!\\n)" }
+                  },
+                  "backupPins": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 15,
+                    "uniqueItems": true,
+                    "items": { "type": "string", "pattern": "^sha256/[A-Za-z0-9+/]{43}=$(?!\\n)" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "build-obfuscation": {
+          "$comment": "D-08a. Closed section without fields: the control only reads the artifact and reports (contracts/devsecops/cli-v1.md, build-obfuscation). Any field is a new version of the control.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version"],
+          "properties": {
+            "version": { "type": "string", "pattern": "^[0-9]+$(?!\\n)" }
+          }
+        },
+        "asset-encryption": {
+          "$comment": "D-14a. Structure only. A canonical path is a file of the base module as bundletool lists it without `base/`: `assets/` then segments of [A-Za-z0-9._@+~-] (never `.` or `..`), no empty segment, no `#` (AAB targeting folders), no wildcard, not under `assets/sentomaru/`, 8 to 512 characters. The CLI also checks what a schema cannot: `strings` repeating a path of `assets`, more than 64 files counting `strings`, sizes (1 MiB per file since D-14e, the 4 MiB format ceiling only with the laboratory gate; 32 MiB in total), the strings JSON and everything that needs the AAB (contracts/devsecops/cli-v1.md, asset-encryption). `$(?!\\n)` ends the patterns because a Python `$` also matches before a final newline.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "assets"],
+          "properties": {
+            "version": { "type": "string", "pattern": "^[0-9]+$(?!\\n)" },
+            "assets": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "uniqueItems": true,
+              "items": { "type": "string", "pattern": "^(?=.{8,512}$(?!\\n))assets/(?!sentomaru/)(?:(?!\\.{1,2}/)[A-Za-z0-9._@+~-]+/)*(?!\\.{1,2}$)[A-Za-z0-9._@+~-]+$(?!\\n)" }
+            },
+            "strings": {
+              "anyOf": [
+                { "type": "null" },
+                { "type": "string", "pattern": "^(?=.{8,512}$(?!\\n))assets/(?!sentomaru/)(?:(?!\\.{1,2}/)[A-Za-z0-9._@+~-]+/)*(?!\\.{1,2}$)[A-Za-z0-9._@+~-]+$(?!\\n)" }
+              ]
+            }
+          }
+        },
+        "ui-shield": {
+          "$comment": "G-10 (in the CLI since build 0.6.0, G-10c; behind SENTOMARU_LAB=1 from G-10a to then). Structure only: `listed_only` needs 1 to 64 activities, `all_activities` needs none. The CLI also checks what a schema cannot: every listed activity is declared in the base manifest of the AAB (`app-incompatible`) and the control needs runtime-injection (`control-prerequisite`) (contracts/devsecops/cli-v1.md, ui-shield). `$(?!\\n)` ends the patterns because a Python `$` also matches before a final newline.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "mode", "activities", "hideOverlayWindows"],
+          "properties": {
+            "version": { "type": "string", "pattern": "^[0-9]+$(?!\\n)" },
+            "mode": { "enum": ["listed_only", "all_activities"] },
+            "activities": {
+              "type": "array",
+              "maxItems": 64,
+              "uniqueItems": true,
+              "items": { "type": "string", "maxLength": 256, "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*(\\.[A-Za-z_$][A-Za-z0-9_$]*)+$(?!\\n)" }
+            },
+            "hideOverlayWindows": { "type": "boolean" }
+          },
+          "allOf": [
+            { "if": { "properties": { "mode": { "const": "listed_only" } } }, "then": { "properties": { "activities": { "minItems": 1 } } } },
+            { "if": { "properties": { "mode": { "const": "all_activities" } } }, "then": { "properties": { "activities": { "maxItems": 0 } } } }
+          ]
+        }
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["version"],
+        "properties": { "version": { "type": "string", "pattern": "^[0-9]+$" } }
+      }
+    }
+  }
+}

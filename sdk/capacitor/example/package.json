@@ -1,0 +1,23 @@
+{
+  "name": "sentomaru-capacitor-example",
+  "version": "0.0.0",
+  "private": true,
+  "description": "minimal Capacitor app that calls the Sentomaru plugin. Not published; not a product.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test flow.test.ts",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@capacitor/android": "7.4.3",
+    "@capacitor/core": "7.4.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "7.4.3",
+    "@types/node": "22.10.2",
+    "typescript": "5.7.2",
+    "vite": "6.0.7"
+  },
+  "engines": { "node": ">=22" }
+}

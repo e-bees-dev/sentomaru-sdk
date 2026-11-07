@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1",
+  "kind": "protect",
+  "profileId": "obf-lab-hml-protect",
+  "scope": { "organization": "ebees", "app": "obf-lab", "environment": "hml" },
+  "controls": {
+    "build-obfuscation": { "version": "1" }
+  }
+}

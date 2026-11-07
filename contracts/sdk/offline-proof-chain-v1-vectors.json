@@ -1,0 +1,235 @@
+{
+  "schema": "sentomaru-offline-proof-chain-vectors/1",
+  "note": "Public key and signatures only. The signing key was generated for these vectors and discarded. Every case verifies with the same bytes on the server (OfflineChain.Verify) and in the SDK.",
+  "permitId": "6f1c0000-0000-4000-8000-00000000d026",
+  "chainSeed": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+  "seedHashHex": "8815474c1ebef4ace307c3f0b66b54f86a33cf04505347f11f520dcf9a8b32b5",
+  "installationPublicKeySpki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEQNI+t5tHqwvVUUZh6aGLGw4+CIkLg/mXD4knfHFvbRPHsrZir+UWuJHvQTaGUvNGB+BMZMvhzBIO5NrXuFjpw==",
+  "issuedAt": "2026-11-05T08:00:00Z",
+  "validUntil": "2026-11-06T08:00:00Z",
+  "driftToleranceSeconds": 120,
+  "cases": [
+    {
+      "id": "honest",
+      "description": "Three seals, one boot, both clocks agree.",
+      "receivedAt": "2026-11-05T11:00:00Z",
+      "items": [
+        {
+          "seq": 0,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 600000000000,
+          "wallClockMillis": 1793866200000,
+          "operationDigest": "bjQLnP-zepicpUTmu3gKLHiQHT-zNzh2hRGjBhevoB0",
+          "prevHash": "iBVHTB6-9KzjB8PwtmtU-GozzwRQU0fxH1INz5qLMrU",
+          "hash": "pp-iXo_x_R8xiLFilzv8RLTXq7BQNhIdinsGKqYh9UU",
+          "signature": "MEYCIQDyZkm2hfD7yB4JTXD3z22QS3T_PS7gp_ONGIgN09NpjgIhAMIp-nrZtMW6S6B_Z5LNzNw0At1ZD-KrNWWstR62GsE3",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d02600000000000000070000008bb2c97000000001a1aac1f3c06e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d8815474c1ebef4ace307c3f0b66b54f86a33cf04505347f11f520dcf9a8b32b5"
+        },
+        {
+          "seq": 1,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 2400000000000,
+          "wallClockMillis": 1793868000000,
+          "operationDigest": "S_USLzRFVMU73i67jNK349FgCtYxw4Wl18ziPHeFRZo",
+          "prevHash": "pp-iXo_x_R8xiLFilzv8RLTXq7BQNhIdinsGKqYh9UU",
+          "hash": "3iAMR_L_EDIW3lFtoK2bjan_dvuL5O3qsCkeaQXJscI",
+          "signature": "MEYCIQD5388NnJLSic8FATRUu80f2yCgyXIokosBiOgPwsW9SAIhAN8cbYh1L2h7vVkflQ4VDoJOihPegdtQFBt8Cw215HXK",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d02600000001000000070000022ecb25c000000001a1aadd6b004bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459aa69fa25e8ff1fd1f3188b162973bfc44b4d7abb05036121d8a7b062aa621f545"
+        },
+        {
+          "seq": 2,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 6000000000000,
+          "wallClockMillis": 1793871600000,
+          "operationDigest": "28G0yQD_5I1XW12lxjgEASX2XbD-PiRJS3bqmGRX2YY",
+          "prevHash": "3iAMR_L_EDIW3lFtoK2bjan_dvuL5O3qsCkeaQXJscI",
+          "hash": "Z6skLgzL70V9QnnwR4wbdSjzxy8xzr9Fbqmm634pgAQ",
+          "signature": "MEUCIQCJzQN4ZBXl0NBRBeQfdxzBOpbDt2Od7x5UXqABCgrHAgIgZPtQxennY4b4yLEY4oYhO3H0TFKM915tHrFDV-tadV0",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d026000000020000000700000574fbde6000000001a1ab145980dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986de200c47f2ff103216de516da0ad9b8da9ff76fb8be4edeab0291e6905c9b1c2"
+        }
+      ],
+      "expectedStatus": "accepted",
+      "expectedSignals": [],
+      "expectedBootCount": "available"
+    },
+    {
+      "id": "OFF-01",
+      "description": "The wall clock jumps two hours between seals 0 and 1 while the monotonic clock moves 30 minutes.",
+      "receivedAt": "2026-11-05T12:00:00Z",
+      "items": [
+        {
+          "seq": 0,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 600000000000,
+          "wallClockMillis": 1793866200000,
+          "operationDigest": "bjQLnP-zepicpUTmu3gKLHiQHT-zNzh2hRGjBhevoB0",
+          "prevHash": "iBVHTB6-9KzjB8PwtmtU-GozzwRQU0fxH1INz5qLMrU",
+          "hash": "pp-iXo_x_R8xiLFilzv8RLTXq7BQNhIdinsGKqYh9UU",
+          "signature": "MEYCIQCvBTYmvtdRhgVNHtv4-HkotVqREncmHsqEV_-u2LdKKwIhAMY6TD0ZMkcZbCVyUPziG0cvDEtnM8Q50n4DJMD522bi",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d02600000000000000070000008bb2c97000000001a1aac1f3c06e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d8815474c1ebef4ace307c3f0b66b54f86a33cf04505347f11f520dcf9a8b32b5"
+        },
+        {
+          "seq": 1,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 2400000000000,
+          "wallClockMillis": 1793874600000,
+          "operationDigest": "S_USLzRFVMU73i67jNK349FgCtYxw4Wl18ziPHeFRZo",
+          "prevHash": "pp-iXo_x_R8xiLFilzv8RLTXq7BQNhIdinsGKqYh9UU",
+          "hash": "L2kwXT36xeZs86CbP9XmVK9iLMFtODQKykLOEL9mOkY",
+          "signature": "MEYCIQDZhcJM9tXTBb-8rnQU28Zv7Am4HP3vmXZqZgG6qsnelAIhALLkp5Jj12jui6kbZLjOwZTQD1RLtcwKrRzBS-NCT4Ge",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d02600000001000000070000022ecb25c000000001a1ab4220404bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459aa69fa25e8ff1fd1f3188b162973bfc44b4d7abb05036121d8a7b062aa621f545"
+        },
+        {
+          "seq": 2,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 6000000000000,
+          "wallClockMillis": 1793878200000,
+          "operationDigest": "28G0yQD_5I1XW12lxjgEASX2XbD-PiRJS3bqmGRX2YY",
+          "prevHash": "L2kwXT36xeZs86CbP9XmVK9iLMFtODQKykLOEL9mOkY",
+          "hash": "rkNaFINhNcoHC3ILUKopxE1aCiIaamemj4DHg4r99iA",
+          "signature": "MEUCIQCLzhP7P1g0HBiTO6EJqViM3P40U5HKxxeB4Ppy8Tw1BQIgdNcD8JXUnYj-goAj1bHF-GBbBDGRvD-eay3ENVW97QA",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d026000000020000000700000574fbde6000000001a1ab790ec0dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d9862f69305d3dfac5e66cf3a09b3fd5e654af622cc16d38340aca42ce10bf663a46"
+        }
+      ],
+      "expectedStatus": "rejected",
+      "expectedSignals": [
+        "offline_clock_tampered"
+      ],
+      "expectedBootCount": "available"
+    },
+    {
+      "id": "OFF-02",
+      "description": "The seal with seq 1 is removed from the batch (the tail is not protected: dropping seq 2 instead would be accepted).",
+      "receivedAt": "2026-11-05T11:00:00Z",
+      "items": [
+        {
+          "seq": 0,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 600000000000,
+          "wallClockMillis": 1793866200000,
+          "operationDigest": "bjQLnP-zepicpUTmu3gKLHiQHT-zNzh2hRGjBhevoB0",
+          "prevHash": "iBVHTB6-9KzjB8PwtmtU-GozzwRQU0fxH1INz5qLMrU",
+          "hash": "pp-iXo_x_R8xiLFilzv8RLTXq7BQNhIdinsGKqYh9UU",
+          "signature": "MEUCIQCSsh90YwayQ7VhmEjIMz05P8SwoqLvMhcoVd2BVRglPQIgJnJ-N3AOozXcq_SVFVnA3ppNeBfhAlqx_QmX_u0wLzs",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d02600000000000000070000008bb2c97000000001a1aac1f3c06e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d8815474c1ebef4ace307c3f0b66b54f86a33cf04505347f11f520dcf9a8b32b5"
+        },
+        {
+          "seq": 2,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 6000000000000,
+          "wallClockMillis": 1793871600000,
+          "operationDigest": "28G0yQD_5I1XW12lxjgEASX2XbD-PiRJS3bqmGRX2YY",
+          "prevHash": "3iAMR_L_EDIW3lFtoK2bjan_dvuL5O3qsCkeaQXJscI",
+          "hash": "Z6skLgzL70V9QnnwR4wbdSjzxy8xzr9Fbqmm634pgAQ",
+          "signature": "MEYCIQDbnL8ZbujL46H13cd4Vd2HOkZ6IhXpHVVVEMYXJCOFJwIhAP51fpaG8tUKHsYBFTUjDQrtpESswfeMzs2dNed6vP9G",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d026000000020000000700000574fbde6000000001a1ab145980dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986de200c47f2ff103216de516da0ad9b8da9ff76fb8be4edeab0291e6905c9b1c2"
+        }
+      ],
+      "expectedStatus": "rejected",
+      "expectedSignals": [
+        "offline_chain_broken",
+        "offline_chain_gap_detected"
+      ],
+      "expectedBootCount": "available"
+    },
+    {
+      "id": "OFF-03a",
+      "description": "A reboot (bootCount 7 to 8) between seals with a sane wall clock.",
+      "receivedAt": "2026-11-05T12:00:00Z",
+      "items": [
+        {
+          "seq": 0,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 600000000000,
+          "wallClockMillis": 1793866200000,
+          "operationDigest": "bjQLnP-zepicpUTmu3gKLHiQHT-zNzh2hRGjBhevoB0",
+          "prevHash": "iBVHTB6-9KzjB8PwtmtU-GozzwRQU0fxH1INz5qLMrU",
+          "hash": "pp-iXo_x_R8xiLFilzv8RLTXq7BQNhIdinsGKqYh9UU",
+          "signature": "MEYCIQDAmtC02u61MJfjqwtDdx8NUq3-UubrJkwVekomGAvJ9QIhAOHIrf1VBb9H3I8zxxgrCz1ypFKGmbukyT_gfCVoy5i-",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d02600000000000000070000008bb2c97000000001a1aac1f3c06e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d8815474c1ebef4ace307c3f0b66b54f86a33cf04505347f11f520dcf9a8b32b5"
+        },
+        {
+          "seq": 1,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 2400000000000,
+          "wallClockMillis": 1793868000000,
+          "operationDigest": "S_USLzRFVMU73i67jNK349FgCtYxw4Wl18ziPHeFRZo",
+          "prevHash": "pp-iXo_x_R8xiLFilzv8RLTXq7BQNhIdinsGKqYh9UU",
+          "hash": "3iAMR_L_EDIW3lFtoK2bjan_dvuL5O3qsCkeaQXJscI",
+          "signature": "MEUCIFTPUtwIBwR7s4W9dUd5Ump19D_aNc4eJfg1TTe22MkEAiEApBw0eNBDj2YNdxrdGjvb6YbuKggpbX45Jl1uIQPAxF8",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d02600000001000000070000022ecb25c000000001a1aadd6b004bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459aa69fa25e8ff1fd1f3188b162973bfc44b4d7abb05036121d8a7b062aa621f545"
+        },
+        {
+          "seq": 2,
+          "bootCount": 8,
+          "elapsedRealtimeNanos": 300000000000,
+          "wallClockMillis": 1793871600000,
+          "operationDigest": "28G0yQD_5I1XW12lxjgEASX2XbD-PiRJS3bqmGRX2YY",
+          "prevHash": "3iAMR_L_EDIW3lFtoK2bjan_dvuL5O3qsCkeaQXJscI",
+          "hash": "yzWnpJHA-H0LZVh_fNPKgyi2Yqu-xYObncnzBfF-7FQ",
+          "signature": "MEUCIQCLxilWA3dfQ8YQx_3Xblqy6URHkPJXWQpy3OLOuOzuZQIgTN-jtdwj_zEj4-5DOvyHc1JGOxS3o9v0I6sSHyHydTA",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d026000000020000000800000045d964b800000001a1ab145980dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986de200c47f2ff103216de516da0ad9b8da9ff76fb8be4edeab0291e6905c9b1c2"
+        },
+        {
+          "seq": 3,
+          "bootCount": 8,
+          "elapsedRealtimeNanos": 1800000000000,
+          "wallClockMillis": 1793873100000,
+          "operationDigest": "CE_tCLl4r019GWp0RqhrWACeY2thHbFiEbZamq3_KcU",
+          "prevHash": "yzWnpJHA-H0LZVh_fNPKgyi2Yqu-xYObncnzBfF-7FQ",
+          "hash": "RpRvQiJH9c-P0Pp8FIIciO5HeDCXMKLn9pFIxAyrNfs",
+          "signature": "MEUCIQD2cY-RqqrdIwG_SYycv2w-mXEXkAhrO88oeF5hq9mRnQIgOsonaj88eiFVdtffVKzra99qrBqcSqIO94Ud1zGW_oE",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d0260000000300000008000001a3185c5000000001a1ab2b3ce0084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5cb35a7a491c0f87d0b65587f7cd3ca8328b662abbec5839b9dc9f305f17eec54"
+        }
+      ],
+      "expectedStatus": "accepted",
+      "expectedSignals": [],
+      "expectedBootCount": "available"
+    },
+    {
+      "id": "OFF-03b",
+      "description": "A reboot, and the wall clock set back six hours after it.",
+      "receivedAt": "2026-11-05T16:00:00Z",
+      "items": [
+        {
+          "seq": 0,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 600000000000,
+          "wallClockMillis": 1793889600000,
+          "operationDigest": "bjQLnP-zepicpUTmu3gKLHiQHT-zNzh2hRGjBhevoB0",
+          "prevHash": "iBVHTB6-9KzjB8PwtmtU-GozzwRQU0fxH1INz5qLMrU",
+          "hash": "pKoYDVEQSCQP93LfuFKrOb8iRo6kALR7NvtU6mSK838",
+          "signature": "MEUCIQDbPe9LYAJU37Gc0unBMS1oGmKACeFXaDnmLdtqcQmpNQIgbZpln-xwD9F8iHPyiGclZ8khhA88uDSL9SLeVj8U-H8",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d02600000000000000070000008bb2c97000000001a1ac2702006e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d8815474c1ebef4ace307c3f0b66b54f86a33cf04505347f11f520dcf9a8b32b5"
+        },
+        {
+          "seq": 1,
+          "bootCount": 7,
+          "elapsedRealtimeNanos": 2400000000000,
+          "wallClockMillis": 1793891400000,
+          "operationDigest": "S_USLzRFVMU73i67jNK349FgCtYxw4Wl18ziPHeFRZo",
+          "prevHash": "pKoYDVEQSCQP93LfuFKrOb8iRo6kALR7NvtU6mSK838",
+          "hash": "dGzz27Gjx_iDJfnDii7nlabdTTwzHMPi9bAPH-SVK-c",
+          "signature": "MEUCIQCS73O8yk-g7bQDGzafLqKC1rRABTLrwKViS2_RL2mW0QIgGabOWdmXeNCIowR7XRfgY67m3TfWfvTTz3biVSBA-yg",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d02600000001000000070000022ecb25c000000001a1ac4279404bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459aa4aa180d511048240ff772dfb852ab39bf22468ea400b47b36fb54ea648af37f"
+        },
+        {
+          "seq": 2,
+          "bootCount": 8,
+          "elapsedRealtimeNanos": 300000000000,
+          "wallClockMillis": 1793869800000,
+          "operationDigest": "28G0yQD_5I1XW12lxjgEASX2XbD-PiRJS3bqmGRX2YY",
+          "prevHash": "dGzz27Gjx_iDJfnDii7nlabdTTwzHMPi9bAPH-SVK-c",
+          "hash": "SuQu4RwArBiLSEz_uWkUKStbks0byM2sBNrBF3N1Lrg",
+          "signature": "MEUCIQDP_3RkExuxgzXhqaZBa9_v2B5giy4TRFedtGmLE2iNRAIgWEc-3Dwe-5Dfqk7qeuwB7iLH779gE9atDudxtuLnX1Q",
+          "recordHex": "534d4f4646316f1c000000004000800000000000d026000000020000000800000045d964b800000001a1aaf8e240dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986746cf3dbb1a3c7f88325f9c38a2ee795a6dd4d3c331cc3e2f5b00f1fe4952be7"
+        }
+      ],
+      "expectedStatus": "rejected",
+      "expectedSignals": [
+        "offline_clock_tampered"
+      ],
+      "expectedBootCount": "available"
+    }
+  ]
+}

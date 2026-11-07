@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- D-24d (known_malware): package visibility limited to apps that have a launcher entry. No QUERY_ALL_PACKAGES
+         (owner decision, 4/11/2026). The host app may widen it in its own manifest. -->
+    <!-- D-20 / Shield #2: no <uses-permission> here. A host that merges this library (a Flutter or React Native app,
+         any app that only reads signals) must not inherit permissions it never uses. The screen shield (ScreenShield)
+         is installed by the app's own native code; an app that installs it declares DETECT_SCREEN_CAPTURE (API 34) and
+         DETECT_SCREEN_RECORDING (API 35) in its own manifest (both are normal-protection, no dialog). Without them
+         screen_capture reports no_screens and screen_shared leaves the recording indicator unmeasured: UNKNOWN, never
+         "not detected". -->
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+</manifest>

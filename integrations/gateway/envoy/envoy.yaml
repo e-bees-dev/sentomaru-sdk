@@ -1,0 +1,193 @@
+# D-17d: exemplo de Envoy na frente do Sentomaru.Gateway.Verifier (contracts/api/gateway-verifier-v1.md, seções 5 e 10).
+# Imagem fixada por digest em integrations/gateway/envoy/envoy-image. Os marcadores __NOME__ são trocados no deploy (e
+# pelo gate verification/run_gateway.py e pelo teste de vetores): endereço e porta do ouvinte, do verificador e do
+# upstream, e o emissor, a audiência e as chaves públicas (JWKS) do token de usuário que o gateway autentica.
+# Tudo o que está aqui é requisito normativo da seção 5 do contrato, salvo o filtro jwt_authn, que é um exemplo de
+# autenticação do gateway para o modo trusted-header (troque pela autenticação que o gateway já faz). Nenhum segredo:
+# o JWKS é público, e a credencial de workload fica só no verificador (workloadTokenFile).
+static_resources:
+  listeners:
+  - name: gateway
+    address:
+      socket_address: { address: __LISTEN_ADDRESS__, port_value: __LISTEN_PORT__ }
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: gateway
+          # HTTP/1.1 e HTTP/2: o que o gate prova em cada um está na seção 10 do contrato.
+          codec_type: AUTO
+          # sentomaru_verified_subject não casa a remoção por prefixo abaixo, e um backend que iguala - e _ (CGI, WSGI) o
+          # leria como o verdadeiro: nome com sublinhado é recusado, em toda rota.
+          common_http_protocol_options: { headers_with_underscores_action: REJECT_REQUEST }
+          # Cada stream custa uma avaliação e até 64 KiB em buffer: limite por conexão.
+          http2_protocol_options:
+            max_concurrent_streams: 100
+            initial_stream_window_size: 131072
+            initial_connection_window_size: 1048576
+          # C1/I4: gateway, verificador e upstream veem o mesmo caminho; %2F e %5C são recusados antes de qualquer filtro.
+          normalize_path: true
+          merge_slashes: true
+          path_with_escaped_slashes_action: REJECT_REQUEST
+          # Respostas do próprio Envoy com o corpo JSON do verificador: 413 acima de 65536 bytes (with_request_body) e o
+          # 503 do status_on_error (verificador com 5xx, lento ou parado: flag UAEX). Respostas do verificador passam
+          # inalteradas.
+          local_reply_config:
+            mappers:
+            - filter:
+                status_code_filter:
+                  comparison: { op: EQ, value: { default_value: 413, runtime_key: sentomaru_unused_413 } }
+              body_format_override:
+                json_format: { code: "body-limit" }
+            - filter:
+                and_filter:
+                  filters:
+                  - status_code_filter:
+                      comparison: { op: EQ, value: { default_value: 503, runtime_key: sentomaru_unused_503 } }
+                  - response_flag_filter: { flags: ["UAEX"] }
+              body_format_override:
+                json_format: { code: "integrity-unavailable" }
+          route_config:
+            name: protected
+            virtual_hosts:
+            - name: protected
+              domains: ["*"]
+              routes:
+              # Única rota isenta (C1): só GET /health, escrita aqui e repetida em "exempt" na configuração do
+              # verificador. Outro método em /health cai na rota protegida (403 operation-unmapped do verificador).
+              - match:
+                  path: "/health"
+                  headers: [{ name: ":method", string_match: { exact: GET } }]
+                route: { cluster: upstream, timeout: 5s }
+                typed_per_filter_config:
+                  envoy.filters.http.ext_authz:
+                    "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute
+                    disabled: true
+              # O vhost inteiro é verificado. I1: proibidos retry_policy, hedge_policy e request_mirror_policies.
+              - match: { prefix: "/" }
+                route: { cluster: upstream, timeout: 15s }
+          http_filters:
+          # Cabeçalhos de resultado mandados pelo cliente nunca chegam ao upstream, e os de chamador nunca chegam ao
+          # verificador: apagados antes de tudo (o jwt_authn e o verificador põem os seus depois). Os x-envoy-* do
+          # cliente também (I1): x-envoy-retry-on e afins ligam retry por cabeçalho quando o Envoy trata a requisição
+          # como interna (com use_remote_address desligado, o x-forwarded-for do cliente casando internal_address_config).
+          # Sem internal_address_config, como aqui, a 1.40 trata todo cliente como externo; a remoção fica como defesa.
+          - name: envoy.filters.http.header_mutation
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.header_mutation.v3.HeaderMutation
+              mutations:
+                request_mutations:
+                - remove_on_match:
+                    key_matcher: { prefix: "sentomaru-verified-" }
+                - remove_on_match:
+                    key_matcher: { prefix: "sentomaru-caller-" }
+                - remove_on_match:
+                    key_matcher: { prefix: "x-envoy-" }
+          # I7: cabeçalho do perfil repetido é recusado (400 header-repeated) antes de o ext_authz juntá-lo com vírgula.
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              default_source_code:
+                inline_string: |
+                  local single = { ["signature"] = true, ["signature-input"] = true, ["content-type"] = true,
+                                   ["content-digest"] = true, ["content-length"] = true }
+                  function envoy_on_request(handle)
+                    local seen = {}
+                    for name, value in pairs(handle:headers()) do
+                      local key = string.lower(name)
+                      -- O Envoy junta content-type e content-length repetidos antes deste filtro: sobra a vírgula.
+                      if (key == "content-type" or key == "content-length") and string.find(value, ",", 1, true) then
+                        handle:respond({ [":status"] = "400", ["content-type"] = "application/json" },
+                                       '{"code":"header-repeated"}')
+                        return
+                      end
+                      if single[key] or string.sub(key, 1, 12) == "x-sentomaru-" then
+                        if seen[key] then
+                          handle:respond({ [":status"] = "400", ["content-type"] = "application/json" },
+                                         '{"code":"header-repeated"}')
+                          return
+                        end
+                        seen[key] = true
+                      end
+                    end
+                  end
+          # Chamador (trusted-header): o gateway autentica o usuário e injeta sentomaru-caller-subject/-tenant a partir
+          # das claims do token já validado. Exemplo com JWT ES256/RS256 e JWKS fixo; sem token válido, 401 do Envoy.
+          - name: envoy.filters.http.jwt_authn
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.jwt_authn.v3.JwtAuthentication
+              providers:
+                gateway_users:
+                  issuer: "__JWT_ISSUER__"
+                  audiences: ["__JWT_AUDIENCE__"]
+                  local_jwks:
+                    inline_string: '__JWKS_JSON__'
+                  forward: true
+                  # Só o cabeçalho authorization (Bearer); sem isso o filtro aceitaria também ?access_token= na query.
+                  from_headers: [{ name: authorization, value_prefix: "Bearer " }]
+                  claim_to_headers:
+                  - { header_name: sentomaru-caller-subject, claim_name: sub }
+                  - { header_name: sentomaru-caller-tenant, claim_name: tenant }
+              rules:
+              - match:
+                  path: "/health"
+                  headers: [{ name: ":method", string_match: { exact: GET } }]
+              - match: { prefix: "/" }
+                requires: { provider_name: gateway_users }
+          - name: envoy.filters.http.ext_authz
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+              transport_api_version: V3
+              failure_mode_allow: false
+              status_on_error: { code: ServiceUnavailable }
+              with_request_body: { max_request_bytes: 65536, allow_partial_message: false }
+              # Ao verificador só vão a allowlist do extrator e o chamador injetado; o token do usuário e o cookie
+              # nunca (o Envoy incluiria o authorization por conta própria).
+              allowed_headers:
+                patterns:
+                - { exact: content-type, ignore_case: true }
+                - { exact: content-digest, ignore_case: true }
+                - { exact: signature, ignore_case: true }
+                - { exact: signature-input, ignore_case: true }
+                - { prefix: x-sentomaru-, ignore_case: true }
+                - { prefix: sentomaru-caller-, ignore_case: true }
+              disallowed_headers:
+                patterns:
+                - { exact: authorization, ignore_case: true }
+                - { exact: cookie, ignore_case: true }
+              http_service:
+                # Sem path_prefix (I4): o verificador vê o caminho como o upstream vai vê-lo, normalizado. Timeout acima
+                # do timeoutMs do verificador (2000 ms por padrão); sem retry para o verificador.
+                server_uri: { uri: "http://verifier", cluster: verifier, timeout: 3s }
+                authorization_response:
+                  allowed_upstream_headers:
+                    patterns:
+                    - { prefix: sentomaru-verified-, ignore_case: true }
+                  allowed_client_headers:
+                    patterns:
+                    - { exact: content-type, ignore_case: true }
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  clusters:
+  - name: verifier
+    type: STRICT_DNS
+    connect_timeout: 1s
+    load_assignment:
+      cluster_name: verifier
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address: { address: __VERIFIER_ADDRESS__, port_value: __VERIFIER_PORT__ }
+  - name: upstream
+    type: STRICT_DNS
+    connect_timeout: 1s
+    load_assignment:
+      cluster_name: upstream
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address: { address: __UPSTREAM_ADDRESS__, port_value: __UPSTREAM_PORT__ }

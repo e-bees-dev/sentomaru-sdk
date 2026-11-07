@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- D-22c (MAUI/Unity): the platform-neutral C# facade over contracts/sdk/hybrid-bridge-v1.json. No MAUI, Unity or Android
+       reference here: the platform adapter (binding / JNI) implements INativeSentomaru and is a separate, untested-here layer. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Sentomaru.Hybrid</RootNamespace>
+  </PropertyGroup>
+</Project>

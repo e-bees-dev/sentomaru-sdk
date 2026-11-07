@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- J-03 lab app. Two launchable activities with the same layout: BaselineActivity never touches the SDK,
+     SdkActivity initializes it on the main thread, as an app would at startup. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application
+        android:allowBackup="false"
+        android:label="Sentomaru Perf">
+        <activity android:name=".BaselineActivity" android:exported="true" />
+        <activity android:name=".SdkActivity" android:exported="true" />
+    </application>
+</manifest>

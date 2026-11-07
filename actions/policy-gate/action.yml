@@ -1,0 +1,139 @@
+# Policy gate of the client's CI (contracts/devsecops/policy-gate-v1.md), next to `actions/protect`.
+# Fails the build with no valid protection profile, no valid CycloneDX SBOM, or a known vulnerable dependency at or
+# above `min-severity`. A thin shell over tools/devsecops/policy_gate.py: installs its hash-locked dependencies in a
+# private venv, runs it, keeps the report as an artifact and fails with its exit code. The profile, the SBOM and the app
+# never leave the runner; with `osv-api: "true"` the components' package URLs do (internal libraries included): use
+# `osv-api: "false"` with a prepared OSV directory to keep everything on the runner.
+#
+# Current state: this checks what the build declares (its SBOM and profile); it does not inspect the binary,
+# and it is as complete as the SBOM and the OSV data are. A component without a package URL is counted, not matched.
+name: sentomaru policy gate
+description: Fail the build without a valid protection profile or SBOM, or with a known vulnerable dependency.
+inputs:
+  profile:
+    description: The protect-profile v1 file
+    required: true
+  sbom:
+    description: CycloneDX 1.5 or 1.6 SBOM (JSON) of the build
+    required: true
+  out:
+    description: Output directory (the report is <out>/policy-report.json)
+    required: false
+    default: build/sentomaru-policy
+  min-severity:
+    description: low | medium | high | critical — findings at or above it fail the build (unknown severity always counts)
+    required: false
+    default: high
+  exceptions:
+    description: Path to an exceptions file (each entry with id, reason and expires; an expired one fails again)
+    required: false
+    default: ""
+  osv-api:
+    description: '"true" queries the OSV API (package URLs only); "false" uses osv-db'
+    required: false
+    default: "true"
+  osv-db:
+    description: Offline OSV directory (JSON records) prepared by the job, used when osv-api is "false"
+    required: false
+    default: ""
+  osv-db-sha256:
+    description: Pinned digest of osv-db (policy_gate.py --hash-db <dir>); required with osv-db
+    required: false
+    default: ""
+  allow-unavailable-db:
+    description: '"true" degrades when the vulnerability source cannot be read (marked in the report); default fails closed'
+    required: false
+    default: "false"
+  allow-components-without-purl:
+    description: '"true" lets components without a known package URL pass unchecked (warned in the report); default fails'
+    required: false
+    default: "false"
+  profile-sha256:
+    description: Registry pin of the profile (Shield); empty skips the pin check
+    required: false
+    default: ""
+  fail:
+    description: '"true" (default) fails the step with the gate exit code; "false" only publishes the outputs'
+    required: false
+    default: "true"
+  report-name:
+    description: Name of the uploaded report artifact (unique per job run; two steps with the same name collide)
+    required: false
+    default: sentomaru-policy-report
+outputs:
+  exit-code:
+    description: Exit code of the gate (0 = pass); empty when it did not run
+    value: ${{ steps.gate.outputs.exit-code }}
+  code:
+    description: The deciding error code (contract precedence); empty on success
+    value: ${{ steps.gate.outputs.code }}
+runs:
+  using: composite
+  steps:
+    - name: Install the gate (hash-locked, private venv)
+      id: setup
+      shell: bash
+      run: |
+        set -euo pipefail
+        venv="$RUNNER_TEMP/sentomaru-policy-gate-$GITHUB_RUN_ID-$RANDOM"
+        python3 -m venv "$venv"
+        "$venv/bin/python" -m pip install -q --disable-pip-version-check --require-hashes \
+          -r "$GITHUB_ACTION_PATH/../../tools/devsecops/policy-gate.requirements.lock"
+        echo "python=$venv/bin/python" >> "$GITHUB_OUTPUT"
+    - name: sentomaru policy gate
+      id: gate
+      shell: bash
+      env:
+        PY: ${{ steps.setup.outputs.python }}
+        PROFILE: ${{ inputs.profile }}
+        SBOM: ${{ inputs.sbom }}
+        OUT: ${{ inputs.out }}
+        MIN: ${{ inputs.min-severity }}
+        EXCEPTIONS: ${{ inputs.exceptions }}
+        OSV_API: ${{ inputs.osv-api }}
+        OSV_DB: ${{ inputs.osv-db }}
+        OSV_DB_SHA256: ${{ inputs.osv-db-sha256 }}
+        ALLOW_UNAVAILABLE: ${{ inputs.allow-unavailable-db }}
+        ALLOW_UNMATCHED: ${{ inputs.allow-components-without-purl }}
+        PROFILE_SHA256: ${{ inputs.profile-sha256 }}
+      run: |
+        set -uo pipefail
+        rm -f "$OUT/policy-report.json"
+        args=(--profile "$PROFILE" --sbom "$SBOM" --out "$OUT" --min-severity "$MIN")
+        case "$OSV_API" in
+          true) args+=(--osv-api) ;;
+          false) args+=(--osv-db "$OSV_DB" --osv-db-sha256 "$OSV_DB_SHA256") ;;
+          *) echo "osv-api must be true or false" >&2; exit 2 ;;
+        esac
+        case "$ALLOW_UNAVAILABLE" in true) args+=(--allow-unavailable-db) ;; false) ;; *) echo "allow-unavailable-db must be true or false" >&2; exit 2 ;; esac
+        case "$ALLOW_UNMATCHED" in true) args+=(--allow-components-without-purl) ;; false) ;; *) echo "allow-components-without-purl must be true or false" >&2; exit 2 ;; esac
+        [[ -n "$EXCEPTIONS" ]] && args+=(--exceptions "$EXCEPTIONS")
+        [[ -n "$PROFILE_SHA256" ]] && args+=(--profile-sha256 "$PROFILE_SHA256")
+        # The composite shell runs with -e: capture the gate's exit code instead of letting it end this step.
+        code=0
+        "$PY" "$GITHUB_ACTION_PATH/../../tools/devsecops/policy_gate.py" "${args[@]}" || code=$?
+        decided=$(python3 -c 'import json,sys
+        try:
+            print(json.load(open(sys.argv[1])).get("code") or "")
+        except Exception:
+            print("")' "$OUT/policy-report.json" | tr -cd 'a-z-')
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        echo "code=$decided" >> "$GITHUB_OUTPUT"
+        exit 0
+    - name: Keep the report
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: ${{ inputs.report-name }}
+        path: ${{ inputs.out }}/policy-report.json
+        if-no-files-found: warn
+    - name: Fail with the gate exit code
+      shell: bash
+      env:
+        CODE: ${{ steps.gate.outputs.exit-code }}
+        DECIDED: ${{ steps.gate.outputs.code }}
+        FAIL: ${{ inputs.fail }}
+      run: |
+        if [[ "$FAIL" == false ]]; then echo "policy gate exited ${CODE:-(not run)} ${DECIDED}; fail: false"; exit 0; fi
+        if [[ -z "$CODE" ]]; then echo "the policy gate did not run" >&2; exit 1; fi
+        if [[ "$CODE" != 0 ]]; then echo "::error::policy-gate:${DECIDED}"; exit "$CODE"; fi

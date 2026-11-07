@@ -1,0 +1,23 @@
+{
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "types": [
+      "react-native"
+    ],
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "paths": {
+      "react-native": [
+        "./node_modules/react-native"
+      ]
+    }
+  },
+  "include": [
+    "App.tsx",
+    "index.js",
+    "../src/*.ts"
+  ]
+}

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- C-08: the minimal third-party consumer the integration guide (docs/api/INTEGRATION_GUIDE.md) quotes. Built and
+       exercised by Integrity.Tests (ThirdPartySampleTests); verification/check_api_docs.py keeps the guide equal to it. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>ThirdPartyApi</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../aspnetcore/Sentomaru.AspNetCore.csproj" />
+    <None Include="sentomaru.example.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

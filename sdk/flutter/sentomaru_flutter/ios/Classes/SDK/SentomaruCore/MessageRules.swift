@@ -1,0 +1,1 @@
+../../../../../../ios/Sources/SentomaruCore/MessageRules.swift

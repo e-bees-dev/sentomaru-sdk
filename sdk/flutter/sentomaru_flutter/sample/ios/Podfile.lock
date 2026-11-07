@@ -1,0 +1,28 @@
+PODS:
+  - Flutter (1.0.0)
+  - integration_test (0.0.1):
+    - Flutter
+  - sentomaru_flutter (0.19.0):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - integration_test (from `.symlinks/plugins/integration_test/ios`)
+  - sentomaru_flutter (from `.symlinks/plugins/sentomaru_flutter/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  integration_test:
+    :path: ".symlinks/plugins/integration_test/ios"
+  sentomaru_flutter:
+    :path: ".symlinks/plugins/sentomaru_flutter/ios"
+
+SPEC CHECKSUMS:
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
+  sentomaru_flutter: 736df3682b23b0ebf0452efbb3dfc67d1103fb86
+
+PODFILE CHECKSUM: bfe1cb5f99cacc3218fa3a4dcd541afefb165293
+
+COCOAPODS: 1.17.0

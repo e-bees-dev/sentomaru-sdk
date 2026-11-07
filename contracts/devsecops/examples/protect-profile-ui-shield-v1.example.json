@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1",
+  "kind": "protect",
+  "profileId": "exampleapp-ui-shield",
+  "scope": { "organization": "ebees", "app": "exampleapp", "environment": "hml" },
+  "controls": {
+    "runtime-injection": { "version": "1", "enrollmentUrl": "https://api.example/v1/ebees/exampleapp/hml/installations" },
+    "ui-shield": {
+      "version": "1",
+      "mode": "listed_only",
+      "activities": ["br.com.ebees.exampleapp.pay.PayActivity", "br.com.ebees.exampleapp.login.PinActivity"],
+      "hideOverlayWindows": true
+    }
+  }
+}

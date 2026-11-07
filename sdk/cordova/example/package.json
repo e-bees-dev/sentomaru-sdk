@@ -1,0 +1,9 @@
+{
+  "name": "sentomaru-cordova-example",
+  "version": "0.0.0",
+  "private": true,
+  "description": "minimal Cordova app that calls the Sentomaru plugin. Not published; not a product.",
+  "scripts": { "test": "node --test test/" },
+  "cordova": { "platforms": ["android"], "plugins": { "br.com.ebees.sentomaru.cordova": {} } },
+  "engines": { "node": ">=22" }
+}

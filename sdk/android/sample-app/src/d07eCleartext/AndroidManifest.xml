@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D-07e, cleartext row only (-Psentomaru.d07e=true -Psentomaru.d07eCleartext=true): the app allows cleartext, so
+     `sentomaru protect` copies the value to <base-config> and warns network-pinning-cleartext-blocked; http to the pinned
+     host must then be refused and http to another host keep working (spec item 7, D-07x12). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:usesCleartextTraffic="true" />
+</manifest>

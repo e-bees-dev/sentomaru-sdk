@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required by the CLI, not by this app: runtime-injection refuses an app without INTERNET (permission-missing,
+         contract cli-v1). The gate app itself never opens a connection. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application android:label="Sentomaru gate" android:allowBackup="false">
+        <activity android:name=".GateActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".OtherActivity" android:exported="true" />
+    </application>
+</manifest>

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1",
+  "kind": "protect",
+  "profileId": "pin-lab-hml-protect",
+  "scope": { "organization": "ebees", "app": "pin-lab", "environment": "hml" },
+  "controls": {
+    "network-pinning": {
+      "version": "1",
+      "expiration": "2027-03-31",
+      "domains": [
+        {
+          "host": "lab-pin.sentomaru.com.br",
+          "includeSubdomains": false,
+          "pins": ["sha256/wiHsTSryBCSSgeMtp2iGevQhCi4C1T6dp5yPxEgMS5s="],
+          "backupPins": ["sha256/jl0tsLo4WkI1z7aBKcSTL/z72E7fhJsNkpqjetYrShI="]
+        }
+      ]
+    }
+  }
+}

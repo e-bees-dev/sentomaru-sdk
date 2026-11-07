@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D-14d, lab only (d14dSealed build): the cold-start launch target. Exported only so `am start -W` from the shell
+     can launch it on a lab device; it reads nothing and the default build never has it. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity
+            android:name="br.com.ebees.sentomaru.d14d.D14dStartActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
