@@ -11,7 +11,7 @@
     <Authors>Sentomaru</Authors>
     <Company>e-bees</Company>
     <Description>ASP.NET Core adapter and action filter for Sentomaru hardware and cryptographic integrity validation.</Description>
-    <RepositoryUrl>https://github.com/e-bees-dev/Sentomaru</RepositoryUrl>
+    <RepositoryUrl>https://github.com/e-bees-dev/sentomaru-sdk</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 

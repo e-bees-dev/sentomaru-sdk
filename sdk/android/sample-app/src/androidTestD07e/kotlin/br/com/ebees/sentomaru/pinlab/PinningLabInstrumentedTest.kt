@@ -47,7 +47,7 @@ import org.junit.runner.RunWith
  * Each case is one instrumentation status `d07eCase` (JSON) with fields of limited format only: the case id, `ok` or
  * `refused`, the HTTP status, the simple class names of the failure chain, whether the chain carries the platform's
  * pin message, the event reason and whether its host is the pinned host, and times in ms. Never a URL, address, host
- * name, certificate, exception message or device identifier. The gabarito is checked by verification/run_d07e_device.py.
+ * name, certificate, exception message or device identifier. The gabarito is checked by the vendor's run d07e device check.
  */
 @RunWith(AndroidJUnit4::class)
 class PinningLabInstrumentedTest {

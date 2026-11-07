@@ -68,7 +68,7 @@ public interface ISentomaruClient
         CancellationToken cancellationToken = default) =>
         Task.FromResult(SentomaruClientResult<InstallationStatusDto>.Failure(501, "not-implemented"));
 
-    /// <summary>E-06: binds the hash of the user's IdP token to a live grant (contracts/trust/session-bindings-v1.md). Default: not supported.</summary>
+    /// <summary>E-06: binds the hash of the user's IdP token to a live grant (the Sentomaru session bindings contract). Default: not supported.</summary>
     Task<SentomaruClientResult<SessionBindingResponseDto>> BindSessionAsync(SessionBindingRequestDto request,
         CancellationToken cancellationToken = default) =>
         Task.FromResult(SentomaruClientResult<SessionBindingResponseDto>.Failure(501, "not-implemented"));

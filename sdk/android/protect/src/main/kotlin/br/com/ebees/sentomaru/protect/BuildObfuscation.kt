@@ -13,7 +13,7 @@ import java.util.zip.ZipFile
  * and never fails for a missing obfuscation (D-08x5): it warns.
  *
  * - `sdkProbeRenamed`: with the SDK in the app, the probe class is **not** defined under its source name (the
- *   criterion of verification/devsecops/check_r8_names.py). It says whether R8 renamed the **SDK**, not the app.
+ *   criterion of the vendor's check r8 names check). It says whether R8 renamed the **SDK**, not the app.
  * - `sdkNamesKept`: `SentomaruRoutes` is defined under its source name and, when the profile has `asset-encryption`,
  *   one of the reader markers too.
  * - `dartObfuscated`: read from every `libapp.so` of the base module (a heuristic, see [dartObfuscated]; validated with
@@ -41,7 +41,7 @@ object BuildObfuscation : Control {
 
     /**
      * Plugin Dart identifiers the sample app reaches (so AOT tree shaking keeps them), present in a plain release
-     * `libapp.so` and absent after `--obfuscate`. The same list as verification/devsecops/check_dart_obfuscation.py,
+     * `libapp.so` and absent after `--obfuscate`. The same list as the vendor's check dart obfuscation check,
      * which validates it on real Flutter builds in CI (a test here keeps the two equal).
      */
     val DART_IDENTIFIERS = listOf("SentomaruClient", "SentomaruConfig", "SignalObservation")

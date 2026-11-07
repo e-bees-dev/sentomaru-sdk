@@ -13,7 +13,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * D-05c cost of the signals detectors, driven by `verification/run_d05c_cost.py` (never in CI).
+ * D-05c cost of the signals detectors, driven by the vendor's run d05c cost check (never in CI).
  * Arguments:
  * - `d05c` = `warm` or `cold`; absent, the test returns at once (guard clause, as `DeviceBridge` in app-lab), so a
  *   plain `connectedDebugAndroidTest` stays green without measuring anything;

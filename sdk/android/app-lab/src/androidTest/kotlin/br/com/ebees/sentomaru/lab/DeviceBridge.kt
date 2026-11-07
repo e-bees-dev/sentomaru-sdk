@@ -14,7 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * LAB ONLY. Step-wise bridge for the real-device interop run (`verification/run_p0.py --device`).
+ * LAB ONLY. Step-wise bridge for the real-device interop run (`the vendor's run p0 check --device`).
  * Driven by `am instrument -w -r -e class br.com.ebees.sentomaru.lab.DeviceBridge -e sentomaruOp <op> ...`:
  *
  * - `generate` (`sentomaruAlias`, `sentomaruChallenge` = 32 bytes base64url): generates the key with

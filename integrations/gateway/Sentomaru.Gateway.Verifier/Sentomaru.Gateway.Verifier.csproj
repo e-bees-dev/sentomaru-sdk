@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-  <!-- D-17c: the gateway verifier (contracts/api/gateway-verifier-v1.md). A minimal ASP.NET Core host over the decision
+  <!-- D-17c: the gateway verifier (the Sentomaru gateway verifier contract). A minimal ASP.NET Core host over the decision
        core of Sentomaru.AspNetCore (SentomaruEvaluationPipeline + SentomaruExtractor, no UsePathBase, no MVC), trusted-header or (D-17c2) jwt
        caller. Built and exercised by Integrity.Tests (GatewayVerifierHostTests, GatewayParityTests). Not published (D-17x8). -->
   <PropertyGroup>

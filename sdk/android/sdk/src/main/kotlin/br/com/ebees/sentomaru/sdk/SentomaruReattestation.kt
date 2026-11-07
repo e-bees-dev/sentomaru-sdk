@@ -10,7 +10,7 @@ import java.time.Instant
 import java.util.Base64
 
 /**
- * D-12c: reattestation under a single-use server challenge (contracts/api/reattestation-v1.md, D-12b), opt-in. Nothing
+ * D-12c: reattestation under a single-use server challenge (the Sentomaru re-attestation API contract, D-12b), opt-in. Nothing
  * creates it for the app and nothing calls it by itself: the app builds one per [SentomaruClient] and calls
  * [reattestIfDue] on a worker thread, e.g. right after a successful renewal (the trigger the spec proposes: at
  * renewal, at most once per [minInterval]). The server keeps it off unless the operator turns it on for the scope

@@ -4,7 +4,7 @@ import java.security.MessageDigest
 import java.util.Base64
 
 /**
- * D-04d (contracts/api/reenrollment-v1.md): the proof a [SentomaruClient.rotate] carries so the server re-enrolls the
+ * D-04d (the Sentomaru re-enrollment API contract): the proof a [SentomaruClient.rotate] carries so the server re-enrolls the
  * current installation instead of creating a new one (same installation code, name, tags and suspension; the previous
  * key stops signing on the server). Signed with the CURRENT key over the scope, the previous installation id, this
  * rotation's challenge id and the SHA-256 of the NEW key's SPKI: it cannot be replayed on another challenge or key.

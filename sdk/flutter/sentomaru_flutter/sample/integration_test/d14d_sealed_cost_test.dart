@@ -4,7 +4,7 @@
 // through the real MethodChannel to the native sealed reader (no crypto in Dart). The latencies are printed as one JSON
 // line tagged D14D_COST, which the device runner reads; a plain `flutter test integration_test` without a device does
 // not run this. The device numbers come from d14d_sealed_cost_app.dart (a plain app entry point launched per
-// measurement by verification/run_d14d_flutter_read_cost.py, so each cold read is a fresh process); the 4 MiB memory
+// measurement by the vendor's run d14d flutter read cost check, so each cold read is a fresh process); the 4 MiB memory
 // (livePeak4m, allocatedVolume4m) is measured on the native side (SealedReadCostInstrumentedTest).
 import 'dart:convert';
 

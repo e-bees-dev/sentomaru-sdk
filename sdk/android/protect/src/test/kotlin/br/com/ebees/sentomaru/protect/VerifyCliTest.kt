@@ -12,7 +12,7 @@ import java.io.File
  * `sentomaru verify receipt|audit-export` only starts the bundled Python verifiers and passes their output and exit code
  * through. These tests use stand-in scripts (so they check the dispatcher alone: arguments, stdout, stderr, exit code) and
  * the real scripts for the cases that need no key (`--help`, a missing file). A valid receipt or export is checked by
- * verification/trust/test_verify_receipt.py and test_verify_audit_export_mutations.py against the same scripts.
+ * the vendor's test verify receipt check and test_verify_audit_export_mutations.py against the same scripts.
  */
 class VerifyCliTest {
     @get:Rule val tmp = TemporaryFolder()

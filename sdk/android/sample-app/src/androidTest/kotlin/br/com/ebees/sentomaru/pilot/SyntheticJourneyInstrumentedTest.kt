@@ -31,7 +31,7 @@ import javax.net.ssl.X509TrustManager
 /**
  * J-04s synthetic pilot journey: one enrollment and N signed operations through the route table, as a field app would
  * do, against the synthetic consumer on this machine (over `adb reverse`), which forwards to the API of the scope given
- * by the runner (`verification/pilot/run_j04s_synthetic.py`). Synthetic traffic: it measures the path and the server,
+ * by the runner (the vendor's run j04s synthetic check). Synthetic traffic: it measures the path and the server,
  * never a false positive of a real user. Own package, so the C-06 suite (package br.com.ebees.sentomaru.sample) and
  * the G-03c class are unchanged.
  */

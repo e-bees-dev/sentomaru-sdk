@@ -4,7 +4,7 @@ import java.security.MessageDigest
 import java.util.Base64
 
 /**
- * C-04b: optional source of a Play Integrity token for an enrollment (contracts/api/play-integrity-v1.md). Advisory:
+ * C-04b: optional source of a Play Integrity token for an enrollment (the Sentomaru Play Integrity API contract). Advisory:
  * an implementation answers null on ANY failure (unavailable Play services, timeout, quota, misconfiguration) and the
  * enrollment goes on without the token. Called on the SDK worker thread, at most once per frozen enrollment body.
  */

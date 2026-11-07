@@ -51,7 +51,7 @@ class SignalsCollector @JvmOverloads constructor(
         /**
          * Per-collection deadline for a collection with the D-05 detectors: the cold p95 goal of the D-05c, and at
          * least the sum of the catalog `budgetMs` of all twelve capabilities. Kept after the D-05c measurement on the
-         * SM-A055M (cold p95 84 ms; a cold run that overruns is reported, not failed).
+         * the reference device (cold p95 84 ms; a cold run that overruns is reported, not failed).
          */
         const val RASP_DEADLINE_MS = 100L
 

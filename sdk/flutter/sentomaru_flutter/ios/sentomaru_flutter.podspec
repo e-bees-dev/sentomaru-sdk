@@ -12,7 +12,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'sentomaru_flutter'
-  s.version          = '0.20.0-rc.1'
+  s.version          = '0.20.0-rc.2'
   s.summary          = 'Sentomaru Flutter adapter: RFC 9421 signing with App Attest and the Secure Enclave on iOS.'
   s.description      = <<-DESC
 iOS side of the Sentomaru Flutter plugin: the same method channel as Android, delegating to the Swift SDK (sdk/ios).

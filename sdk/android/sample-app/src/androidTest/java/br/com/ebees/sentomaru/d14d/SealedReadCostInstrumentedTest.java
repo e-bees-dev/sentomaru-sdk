@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * D-14d, item 13: cost of reading the sealed assets on one real device, driven by verification/run_d14d_read_cost.py
+ * D-14d, item 13: cost of reading the sealed assets on one real device, driven by the vendor's run d14d read cost check
  * (never in CI). The sample-app must be its sealed {@code d14dSealed} build ({@code sentomaru protect} ran: the four
  * {@code assets/d14d/<n>.bin} canary files are sealed and the plain originals are gone), installed with this test APK.
  *
@@ -137,7 +137,7 @@ public class SealedReadCostInstrumentedTest {
      * heap (and, separately, {@code Debug.getNativeHeapAllocatedSize()}) above a baseline taken after GC with nothing
      * read; one more sample after the read, with the returned array still referenced. ART's collector is concurrent
      * and the read keeps allocating while it runs, so a sample also counts what the read allocated during that
-     * collection: on the SM-A055M the maximum reached ~94% of all the read allocates, impossible as live memory.
+     * collection: on the reference device the maximum reached ~94% of all the read allocates, impossible as live memory.
      * The JVM and native maxima are reported apart (never summed: they may come from different instants).
      * </ul>
      * The precise live peak is the {@code livepeak} mode (SealedLivePeakProbe, checkpoints on the reading thread).

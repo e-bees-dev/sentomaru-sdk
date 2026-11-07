@@ -57,8 +57,8 @@ object Controls {
      * (device-and-emulator proof recorded as done) and its review R. It does read
      * [ControlContext.lab] (the per-file limit, [AssetEncryption.maxFileBytes]: 1 MiB, the format ceiling of 4 MiB only
      * with the gate); D-16-lab-gate already closed, so a registered run refuses SENTOMARU_LAB=1 (`lab-gate-registered`)
-     * and only the dry run and the lab run ever see the gate (verification/check_cli_pipeline_docs.py, LAB_READ_AFTER_D16).
-     * G-10c: `ui-shield` (harden/50) joined it after the device proof (verification/run_g10c_device_gate.py); it only edits the manifest and does
+     * and only the dry run and the lab run ever see the gate (the vendor's check cli pipeline docs check, LAB_READ_AFTER_D16).
+     * G-10c: `ui-shield` (harden/50) joined it after the device proof (the vendor's run g10c device gate check); it only edits the manifest and does
      * not read [ControlContext.lab]. It ships with build 0.6.0 (cli-v0.6.0 still to be published).
      */
     val all: List<Control> = listOf(RuntimeInjection, NetworkSigning, BuildObfuscation, AssetEncryption, NetworkPinning, UiShieldControl)
@@ -148,7 +148,7 @@ object RuntimeInjection : Control {
 }
 
 /**
- * G-03c (owner decision 16/10/2026): network signing is the SDK's RFC 9421 transport, installed by the app in one line
+ * G-03c (vendor decision 16/10/2026): network signing is the SDK's RFC 9421 transport, installed by the app in one line
  * with the profile's hosts and routes (Android `OkHttpClient.Builder.addSentomaru(client, routes)`, Flutter
  * `dio.addSentomaru(client, routes: ...)`; S2: Android `SentomaruUrlConnection.send(client, routes, ...)` for
  * HttpURLConnection). The CLI changes nothing in the binary for the network: it checks, read-only, that the base DEX

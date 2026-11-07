@@ -20,7 +20,7 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
-/** The lab scope and the synthetic consumer reached through `adb reverse` (verification/sdk/consumer.py). */
+/** The lab scope and the synthetic consumer reached through `adb reverse` (the vendor's consumer check). */
 object PerfScope {
     const val HOST = "127.0.0.1"
     const val PORT = 8443

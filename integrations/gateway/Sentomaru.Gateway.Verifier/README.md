@@ -1,7 +1,7 @@
 # Sentomaru.Gateway.Verifier
 
 Serviço verificador que o gateway chama antes do upstream (contrato
-`contracts/api/gateway-verifier-v1.md`, esquema `contracts/api/gateway-verifier-config-v1.schema.json`). Versão 0.1.0,
+the Sentomaru gateway verifier contract, esquema the Sentomaru gateway verifier config contract). Versão 0.1.0,
 não publicado. Exemplo Envoy em `../envoy/`.
 
 ```text
@@ -64,4 +64,4 @@ credencial `consumer` já implantada continua funcionando. Credencial recusada (
 
 `GatewayVerifierHostTests.cs` (host, `trusted-header`, matriz atributo × verificador),
 `GatewayVerifierHostTests.Jwt.cs` (modo `jwt`, regras I6), `GatewayParityTests.cs` e `GatewayParityTests.Envoy.cs`
-(vetores), `verification/run_gateway.py` (gate Envoy com a API real).
+(vetores), the vendor's run gateway check (gate Envoy com a API real).

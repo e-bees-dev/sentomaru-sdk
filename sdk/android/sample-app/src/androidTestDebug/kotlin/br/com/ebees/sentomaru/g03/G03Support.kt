@@ -44,7 +44,7 @@ internal object G03Support {
 
     /**
      * `-e g03_credential 1` (instrumentation argument): the key is made with `strongBiometricOnly = false` (biometric OR the device PIN,
-     * pattern or password) and the prompt accepts the device credential. For a device with no strong biometric (the SM-A055M has face
+     * pattern or password) and the prompt accepts the device credential. For a device with no strong biometric (the reference device has face
      * unlock only). The server tells the two apart by the attested `userAuthType`.
      */
     val credentialMode: Boolean get() = InstrumentationRegistry.getArguments().getString("g03_credential") == "1"
@@ -61,7 +61,7 @@ internal object G03Support {
     class PlatformPromptAuthenticator(private val waitSeconds: Long = 90) : TransactionAuthenticator {
         override fun authenticate(signature: Signature, onAuthenticated: (Signature) -> Unit, onError: (TransactionError) -> Unit) {
             // The system shows a BiometricPrompt only for an app in the FOREGROUND: instrumentation alone has no activity, and the prompt
-            // is cancelled at once (ERROR_CANCELED, seen on the SM-A055M in 0.7 s). The probe activity (debug build) is the foreground.
+            // is cancelled at once (ERROR_CANCELED, seen on the reference device in 0.7 s). The probe activity (debug build) is the foreground.
             val inst = InstrumentationRegistry.getInstrumentation()
             val foreground = inst.startActivitySync(
                 android.content.Intent(inst.targetContext, TouchProbeActivity::class.java).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))

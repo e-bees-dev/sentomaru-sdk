@@ -679,7 +679,7 @@ class AabInjectionTest {
             "-storepass", STORE_PASS, "-alias", "fixture"))
     }
 
-    /** For the API E2E of the shield suite (verification/shield/test_devsecops_cli_e2e.py): the fixture bundle. */
+    /** For the API E2E of the shield suite (the vendor's test devsecops cli e2e check): the fixture bundle. */
     // ---- G-03c: network-signing is the SDK transport the app installs; the CLI checks it, read-only
 
     @Test fun networkSigningChecksTheEmbeddedTransportAndChangesNothingForTheNetwork() {

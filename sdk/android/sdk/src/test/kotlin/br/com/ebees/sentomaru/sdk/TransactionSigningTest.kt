@@ -153,7 +153,7 @@ class TransactionSigningTest {
         assertTrue(error is TransactionError.SigningFailed)
     }
 
-    // Review B (RC-10): the shared vector is READ from contracts/api/transaction-keys-v2-vector.json (the server test and the Python gate read the same
+    // Review B (RC-10): the shared vector is READ from the Sentomaru transaction keys contract (the server test and the Python gate read the same
     // file), never copied as a literal: a change of the file or of the code breaks this test.
     private val v2Vector: String = listOf("contracts/api/transaction-keys-v2-vector.json", "../../../contracts/api/transaction-keys-v2-vector.json",
         "../../contracts/api/transaction-keys-v2-vector.json").map { java.io.File(it) }.first { it.isFile }.readText()

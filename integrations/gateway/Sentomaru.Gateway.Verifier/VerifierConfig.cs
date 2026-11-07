@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 namespace Sentomaru.Gateway.Verifier;
 
 /// <summary>
-/// The verifier configuration, <c>contracts/api/gateway-verifier-config-v1.schema.json</c> (contract section 4). Read
+/// The verifier configuration, <c>the Sentomaru gateway verifier config contract</c> (contract section 4). Read
 /// strictly: unknown members (such as <c>knownProxies</c>), duplicate keys and members in another case are refused, so a
 /// field the verifier does not have can never be believed to be in force. <see cref="Load"/> and <see cref="Validate"/>
 /// are the startup validation: the host does not start with an invalid configuration.

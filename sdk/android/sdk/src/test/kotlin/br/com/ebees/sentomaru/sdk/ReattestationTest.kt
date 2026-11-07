@@ -16,7 +16,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 /**
- * D-12c: [SentomaruReattestation] by doubles of the consumer's route: every answer of contracts/api/reattestation-v1.md,
+ * D-12c: [SentomaruReattestation] by doubles of the consumer's route: every answer of the Sentomaru re-attestation API contract,
  * at most one retry (503 verifier-unavailable, 409 replay) honouring Retry-After, 429 as "not now", the frozen body,
  * the ephemeral key deleted, and never more than two sends of one step per call.
  */

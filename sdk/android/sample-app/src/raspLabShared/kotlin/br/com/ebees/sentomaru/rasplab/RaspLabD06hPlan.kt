@@ -2,7 +2,7 @@ package br.com.ebees.sentomaru.rasplab
 
 /**
  * D-06h-f: the operations and the order of the HML proof, played by
- * `RaspLabD06hInstrumentedTest`. The proof policy (docs/api/examples/policy-integrity-lab-d06h-1.0.0.json) cites the
+ * `RaspLabD06hInstrumentedTest`. The proof policy (the vendor's policy integrity lab d06h 1.0.0 notes) cites the
  * reattestation condition on [ENFORCE] (stage enforce) and on [OBSERVE] (stage observe); [PLAIN] cites none, so its
  * evaluations are the `server_ms` without the read. Test-only code of the raspLab build (source set
  * `src/raspLabShared`); the expected answers live in the roteiro, never here.

@@ -1,4 +1,4 @@
-// D-14d, item 13: the Flutter read-cost lab entry point, run on one real device by verification/run_d14d_flutter_read_cost.py
+// D-14d, item 13: the Flutter read-cost lab entry point, run on one real device by the vendor's run d14d flutter read cost check
 // (never in CI). Built as the app's target (`flutter build appbundle --release --obfuscate -t <this file>`), then sealed
 // by `sentomaru protect`, so the four assets/d14d/<n>.bin canary files are sealed and the plain originals are gone.
 // It is a plain app, not a flutter_test: the runner launches MainActivity with `am start --esal dart_entrypoint_args`

@@ -26,7 +26,7 @@ enum ReattestationWait {
       };
 }
 
-/// D-12e: what the server recorded for a reattestation (`contracts/api/reattestation-v1.md`, the 200 answer). States
+/// D-12e: what the server recorded for a reattestation (the Sentomaru re-attestation API contract, the 200 answer). States
 /// and reasons are the server's closed codes; advisory, never an authorization, and the evaluation does not read it
 /// yet (D-12b). [replayed] = the same body was answered before.
 class ReattestationResult {

@@ -1,4 +1,4 @@
-# Item 16 / P-1: the laboratory host of the device round, as a container for the Alien (its dotnet is 10.0.114, and the
+# Item 16 / P-1: the laboratory host of the device round, as a container for the lab device (its dotnet is 10.0.114, and the
 # repository's global.json pins 10.0.112 with rollForward disabled; no 10.0.112 SDK image exists, so the pin is dropped here).
 # Build from the repository root:  docker build -f integrations/samples/aspnetcore-rasp-lab-host/Dockerfile -t rasp-lab-host .
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build

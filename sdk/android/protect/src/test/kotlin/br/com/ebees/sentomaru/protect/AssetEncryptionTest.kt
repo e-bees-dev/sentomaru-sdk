@@ -912,7 +912,7 @@ class AssetEncryptionTest {
     }
 
     /**
-     * D-14e (owner decision, conservative): without the laboratory gate the CLI seals at most 1 MiB (1 048 576 bytes)
+     * D-14e (vendor decision, conservative): without the laboratory gate the CLI seals at most 1 MiB (1 048 576 bytes)
      * of plain bytes per file and refuses a larger one at build time, in the compatibility phase (plan, so `--dry-run`
      * too) and in the writer path (apply), on the declared size and again on the inflated bytes, with
      * `app-incompatible` / `asset-too-large`. Since D-14e the control is in Controls.all: the CLI dry run without the

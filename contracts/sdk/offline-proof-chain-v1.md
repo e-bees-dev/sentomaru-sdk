@@ -1,7 +1,7 @@
 # Cadeia de prova offline (`OfflineProofChain`, `v1`)
 
 **Módulo:** Sentomaru Shield, SDK e servidor (`D-26`, HU-03 / SH-41 da avaliação do especialista; migração `0078`)
-**Estado deste contrato:** escrito antes do código, junto com a ficha de dado. Decisão do dono: D-ESP1 (aprovada). Itens da D-26 sem prova em aparelho até a fatia do SDK ser medida; iOS é fatia própria.
+**Estado deste contrato:** escrito antes do código, junto com a ficha de dado. Decisão do fornecedor: D-ESP1 (aprovada). Itens da D-26 sem prova em aparelho até a fatia do SDK ser medida; iOS é fatia própria.
 **Superfície** (mesmo envelope do D-25: o app assina, o backend do consumidor encaminha com o workload `consumer`, e **o veredito volta ao consumidor**, não ao app):
 - `POST /v1/{org}/{app}/{env}/offline-permits` (emite o permit; `x-sentomaru-operation` = `offline_permit`)
 - `POST /v1/{org}/{app}/{env}/offline-permits/reconciliations` (envia o lote e recebe o veredito; `x-sentomaru-operation` = `offline_reconcile`)
@@ -73,7 +73,8 @@ prevHash           32 bytes
 
 - `elapsedNanos` conta desde o boot e inclui sono profundo; zera no reboot. `wallMillis` é o relógio de parede e o usuário pode mudar.
 - `bootCount` identifica o boot. Dentro de um mesmo boot os itens são comparáveis por `elapsed`; entre boots só pelo `wall`.
-- `bootCount` indisponível (`0xFFFFFFFF`) em **todos** os itens: o servidor só aplica a regra de parede (§5, regra 5) e devolve `bootCount: "unavailable"` no veredito. Mistura de disponível e indisponível no mesmo lote é `offline_chain_broken`.
+- `bootCount` indisponível (`0xFFFFFFFF`) em **todos** os itens: o servidor só aplica a regra de parede (§5, regra 5), devolve `bootCount: "unavailable"` no veredito e acrescenta `"offline_boot_unavailable"` em `advisories` (contrato v1.18). Mistura de disponível e indisponível no mesmo lote é `offline_chain_broken`.
+- **O que "indisponível" custa à prova.** Sem o contador, o servidor não confere a deriva dentro do mesmo boot nem a âncora do primeiro selo do boot (§5, regras 5 e RB-03); resta o recuo do relógio de parede e a janela `[issuedAt, recebido_em]`. Quem escolhe esse caminho é o **cliente**: o `bootCount` está dentro do registro que a chave da instalação assina, então a assinatura prova a origem, não o valor, e um app reempacotado pode assinar "indisponível" à vontade. O sentinela não é exclusivo de uma plataforma: o SDK iOS cai nele só se o `sysctl` do boot falhar e o Android quando `Settings.Global.BOOT_COUNT` não é legível. Não há medição de com que frequência cada plataforma o usa.
 
 ## 5. Reconciliação (`reconcile`)
 
@@ -99,8 +100,10 @@ Resposta `200`:
 
 ```json
 {"permitId": "uuid", "status": "accepted", "itemCount": 3, "signals": [], "bootCount": "available",
- "items": [{"seq": 0, "operationDigest": "base64url"}]}
+ "items": [{"seq": 0, "operationDigest": "base64url"}], "advisories": []}
 ```
+
+`advisories` (v1.18, aditivo) lista o que o veredito **não pôde conferir**, calculado pelo servidor a partir do `bootCount` gravado, então a primeira resposta e a repetição dizem o mesmo. Hoje há um valor: `offline_boot_unavailable`, quando `bootCount` é `"unavailable"`. **Não é um `signal`**: não muda `status` nem `signals`, de modo que um lote honesto de um aparelho sem contador continua `accepted` (e um lote adulterado sem contador continua `rejected` pelos seus próprios sinais). O consumidor pondera o aviso como quiser (por exemplo, tratar a cadeia como prova mais fraca). Um cliente que ignora `advisories` não é afetado.
 
 `status` é `accepted` só com `signals` vazio; caso contrário `rejected`. **`rejected` não apaga nada**: o veredito e os `signals` ficam registrados; o consumidor decide. O servidor nunca devolve valores do aparelho em `signals` (só os três códigos). Reconciliar de novo um permit já reconciliado devolve `200` com o **veredito gravado** e nunca regrava nem reavalia (o consumidor que perdeu a resposta a recupera repetindo a chamada); o lote repetido não é comparado com o gravado.
 

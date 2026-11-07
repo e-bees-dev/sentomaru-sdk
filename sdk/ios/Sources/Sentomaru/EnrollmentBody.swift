@@ -27,7 +27,7 @@ enum EnrollmentBody {
     }
 }
 
-/// D-04d (contracts/api/reenrollment-v1.md): the proof a `rotate` carries so the server re-enrolls the current
+/// D-04d (the Sentomaru re-enrollment API contract): the proof a `rotate` carries so the server re-enrolls the current
 /// installation. Signed with the CURRENT key over the scope, the previous installation id, this rotation's challenge id
 /// and the SHA-256 (hex) of the NEW key's SPKI. Byte-identical to the Android `ReenrollmentProof.message`.
 enum ReenrollmentProof {

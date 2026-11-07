@@ -114,9 +114,9 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
     // Same SDK artifacts the library module uses (published to sdk/android/build/repo by the SDK build).
-    implementation("br.com.ebees.sentomaru:sdk:0.2.0-rc.1")
-    implementation("br.com.ebees.sentomaru:signals:0.2.0-rc.1")
-    implementation("br.com.ebees.sentomaru:core:0.2.0-rc.1")
+    implementation("br.com.ebees.sentomaru:sdk:0.2.0-rc.2")
+    implementation("br.com.ebees.sentomaru:signals:0.2.0-rc.2")
+    implementation("br.com.ebees.sentomaru:core:0.2.0-rc.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     if (hermesEnabled.toBoolean()) {

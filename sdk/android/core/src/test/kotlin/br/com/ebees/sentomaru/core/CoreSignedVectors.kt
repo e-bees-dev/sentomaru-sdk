@@ -6,7 +6,7 @@ import java.util.Base64
 /**
  * core-signed-v1.json: every positive vector signed by THIS core with a fresh JDK P-256 key (public SPKI only) and
  * encoded by [EnvelopeCodec]. Consumed by the server tests (real server verification path) and by
- * verification/sdk/check_vectors.py (Python verifier). Regenerate with `./gradlew :core:exportCoreSignedVectors`.
+ * the vendor's vector checker (Python verifier). Regenerate with `./gradlew :core:exportCoreSignedVectors`.
  *
  * One vector per line, so the test-only reader below needs no JSON parser.
  */

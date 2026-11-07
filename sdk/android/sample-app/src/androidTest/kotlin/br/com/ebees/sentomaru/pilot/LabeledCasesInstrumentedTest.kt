@@ -41,7 +41,7 @@ import javax.net.ssl.X509TrustManager
  * over `adb reverse`. The app only EXECUTES the cases and reports what the server answered, case by case, as an
  * instrumentation status (`j04sCase`, closed fields only: HTTP status, error code, recommended action, reason codes,
  * hardware/attestation status). The expected answer of every case (the gabarito) lives in the runner
- * (`verification/pilot/run_j04s_synthetic.py`, `expected_cases`), never here, so an app change cannot move it.
+ * (the vendor's run j04s synthetic check, `expected_cases`), never here, so an app change cannot move it.
  *
  * Never reported: installation, session, key or challenge ids, tokens, bodies, the serial.
  */

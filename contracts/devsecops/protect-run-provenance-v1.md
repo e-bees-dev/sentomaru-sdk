@@ -5,7 +5,7 @@ corrida **registrada**, o CI que chama a CLI (a Action do G-01 ou o passo do pr�
 com [`tools/devsecops/protect_provenance.py`](../../tools/devsecops/protect_provenance.py) (stdlib) e o assina **com a
 chave do cliente**. Com ele, o relatório de proteção da corrida (`kind: protect-run`,
 [protection-report-v1.md](../shield/protection-report-v1.md)) pode ser gerado e conferido por terceiro com o
-`tools/shield/protection_report.py` 1.0.2. Desenho: an internal design note,
+the vendor's protection report tool 1.0.2. Desenho: an internal design note,
 item 6, decisões D-16x11 e D-16x3.
 
 Isto cobre a parte "proveniência (com o artefato de entrada e o de saída)" da G-03e. **Não muda a CLI** (o
@@ -80,7 +80,7 @@ Sentomaru não tem como dizer que a chave é do cliente: o relatório traz `keyN
 
 ## Prova (D-16d)
 
-`verification/shield_release/test_protect_run_report.py`: um AAB de exemplo protegido de verdade pela CLI compilada no
+the vendor's test protect run report check: um AAB de exemplo protegido de verdade pela CLI compilada no
 mesmo job (`runtime-injection`, `network-signing`, `build-obfuscation`), registrada num **registro falso** (servidor
 HTTP stdlib do lado do teste, `buildId` fixo de teste), statement desta ferramenta assinado com chave efêmera e
 relatório gerado e conferido; mais uma corrida sintética com ouro e as recusas. Roda no job `devsecops-cli-dist` do CI,

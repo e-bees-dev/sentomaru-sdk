@@ -113,7 +113,7 @@ final class TransactionSigningTests: XCTestCase {
         XCTAssertEqual(K.map(NSError(domain: "other", code: 1)), .signingFailed)
     }
 
-    // F1: v2 carries the signer's clock. Review B (RC-10): the vector is READ from contracts/api/transaction-keys-v2-vector.json (the file the
+    // F1: v2 carries the signer's clock. Review B (RC-10): the vector is READ from the Sentomaru transaction keys contract (the file the
     // server and the Python gate check), never copied as a literal.
     func testTheV2SignedBytesAreTheCrossLanguageVector() throws {
         let file = try AppAttestVectorTests.repositoryFile("contracts/api/transaction-keys-v2-vector.json")

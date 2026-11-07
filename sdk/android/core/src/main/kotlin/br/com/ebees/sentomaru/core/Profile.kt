@@ -37,7 +37,7 @@ object Profile {
     const val OPERATION_ID_HEADER: String = "x-sentomaru-operation-id"
 
     /**
-     * D-25 (contracts/api/transaction-keys-v1.md): the signature of the transaction key, made after the person
+     * D-25 (the Sentomaru transaction-keys API contract): the signature of the transaction key, made after the person
      * authenticated. Covered by the request signature when sent, so it cannot be removed or swapped in transit.
      */
     const val TX_SIGNATURE_HEADER: String = "x-sentomaru-tx-signature"

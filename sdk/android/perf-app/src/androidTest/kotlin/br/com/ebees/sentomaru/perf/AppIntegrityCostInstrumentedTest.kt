@@ -20,7 +20,7 @@ import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
 
 /**
- * D-12d cost of the D-12c app integrity signals and of the reattestation key, driven by `verification/run_d12d_cost.py`
+ * D-12d cost of the D-12c app integrity signals and of the reattestation key, driven by the vendor's run d12d cost check
  * (never in CI). Arguments:
  * - `d12d` = `warm` or `cold`; absent, the test returns at once (as `RaspCostInstrumentedTest`);
  * - `signer`: the lowercase hex SHA-256 of the lab signing certificate, the list `app_signer_mismatch` expects;

@@ -3,7 +3,7 @@ package br.com.ebees.sentomaru.core
 import java.util.Base64
 
 /**
- * Trusted envelope the consumer forwards to the private API (B-I2, contracts/openapi/integrity-private-v1.yaml):
+ * Trusted envelope the consumer forwards to the private API (B-I2, the private integrity API):
  * `MessageDto = {"method","uri","headers":{name:[value]},"body":<standard base64 with padding>}` with no other
  * member; the enrollment route wraps it as `{"request": MessageDto}`. Evaluations add `operation`/`context`, which
  * belong to the consumer, so only the message is produced here.

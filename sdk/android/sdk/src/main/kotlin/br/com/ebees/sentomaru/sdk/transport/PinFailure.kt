@@ -71,7 +71,7 @@ internal class PinnedHosts private constructor(val hosts: Set<String>) {
  * (`NetworkSecurityTrustManager.checkPins` throws `CertificateException("Pin verification failed")`, read in AOSP on
  * 26/10/2026; Conscrypt passes it on as the cause of an `SSLHandshakeException`); the message is the only mark that
  * tells it apart from another certificate failure, and the device proof (D-07e, API 28 and 34 in the emulator, Android
- * 15 on the SM-A055M) confirms it per version. Only the cause chain of the exception is read (at most [MAX_DEPTH]
+ * 15 on the reference device) confirms it per version. Only the cause chain of the exception is read (at most [MAX_DEPTH]
  * links, no cycle); suppressed exceptions are not.
  */
 internal object PinFailure {

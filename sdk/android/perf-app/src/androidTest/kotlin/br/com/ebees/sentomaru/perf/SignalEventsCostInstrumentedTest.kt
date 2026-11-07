@@ -27,7 +27,7 @@ import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * D-15d cost of the signal events (D-15a `signal`, D-15b `server_response`), driven by `verification/run_d15d_cost.py`
+ * D-15d cost of the signal events (D-15a `signal`, D-15b `server_response`), driven by the vendor's run d15d cost check
  * (never in CI). The collection is the D-05c one (`RaspCost.collector()`); the listeners run on a direct executor, so
  * their delivery is inside the timed region (the worst case the API allows) and no thread is involved. Arguments:
  * - `d15d` = `warm` or `cold`; absent, the test returns at once (as `RaspCostInstrumentedTest`);
@@ -201,7 +201,7 @@ class SignalEventsCostInstrumentedTest {
         /**
          * A REPLICA of the transport's D-15b work on one answer (`SentomaruInterceptor.reportServerResponse`, private
          * there): the status and listener check, a peek of up to 4097 bytes (the body stays unread for the app) and the
-         * event. `verification/test_run_d15d_cost.py` checks the interceptor still has these lines (review R I-1).
+         * event. the vendor's test run d15d cost check checks the interceptor still has these lines (review R I-1).
          */
         fun reportServerResponse(events: SentomaruSignalEvents, response: Response) {
             if (response.code != 401 && response.code != 403 || !events.hasServerResponseListeners) return

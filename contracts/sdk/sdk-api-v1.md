@@ -91,7 +91,7 @@ plugin Flutter 0.9.0, `SentomaruConfig(renewalUrl: …)`). O grant vive 10 min n
   Uma assertion nova a cada tentativa (o retry depois de resposta perdida também gera nonce e assertion novos). Uma
   renovação por vez por instalação, sob a trava do cliente, como no Android: renovações simultâneas entram em fila no
   servidor e a de contador menor é recusada. Toda falha da assertion é `403 session-unavailable`
-  (`EnrollmentRequired`): reinscrever gera chave App Attest nova. Perfil: `contracts/p1-apple-attestation-profile.md`,
+  (`EnrollmentRequired`): reinscrever gera chave App Attest nova. Perfil: the Sentomaru Apple attestation profile,
   seção "Assertion na renovação". O SDK Android não muda (corpo `{}`, não lido). D-09d (sem mudança no fio nem na
   versão): o servidor aceita a atestação e a assertion como a Apple as emite num aparelho (flags `0xC0` e mapa CBOR
   de extensões no `authData`); o SDK passa os bytes de `attestKey` e `generateAssertion` sem mexer neles.
@@ -235,7 +235,7 @@ sealed interface InstallationState {
 ### 2.4 Rotação que reinscreve a mesma instalação (D-04d)
 
 `rotate(challenge)` gera a chave nova e põe no corpo congelado da inscrição o membro `predecessor`
-(`installationId` do grant atual + assinatura feita com a chave **atual**, `contracts/api/reenrollment-v1.md`). Num
+(`installationId` do grant atual + assinatura feita com a chave **atual**, the Sentomaru re-enrollment API contract). Num
 servidor com o contrato v1.6 a instalação nova herda `installationCode`, nome, tags e suspensão, e a chave antiga deixa
 de valer no servidor assim que a rotação é aceita (o SDK ainda a guarda pelo `rotationGracePeriod`, só no aparelho).
 Se a assinatura com a chave atual falhar, a chave nova é apagada e a atual continua ativa. Um retry reenvia os mesmos
@@ -273,7 +273,7 @@ mudança.
 
 `SentomaruReattestation(client, challengeUrl, submitUrl, minInterval = 24 h)`: rotas públicas do consumidor (mesma
 allowlist e `https` do `SentomaruConfig`) que repassam para `POST …/reattestations/challenges` e `POST …/reattestations`
-(`contracts/api/reattestation-v1.md`). Não muda `SentomaruConfig` nem o `SentomaruClient` (só leitura interna das
+(the Sentomaru re-attestation API contract). Não muda `SentomaruConfig` nem o `SentomaruClient` (só leitura interna das
 chaves); nada liga por padrão.
 
 - `reattestIfDue(strongBox, send)`: se `due()`, os dois passos; senão `ReattestationNotNow(NOT_DUE, resto)` sem enviar.

@@ -97,7 +97,7 @@ Conferir que nada ficou instalado: `adb shell pm list packages br.com.ebees.sent
 
 ## Interoperabilidade com o host (aparelho real)
 
-`app-lab/src/androidTest/.../DeviceBridge.kt` é uma ponte só de laboratório, fora da biblioteca `signer`: cada `am instrument -w -r -e class br.com.ebees.sentomaru.lab.DeviceBridge -e sentomaruOp generate|sign|delete ...` executa um passo e devolve o resultado em `INSTRUMENTATION_STATUS` (código 7). Sem `sentomaruOp` o teste retorna cedo (cláusula de guarda, sem `Assume`), então `connectedDebugAndroidTest` continua verde. `sign` usa `KeystoreSigner.useExisting(alias)` para vincular a chave gerada numa chamada anterior (outro processo); falha de keystore → `IllegalStateException`, chave que não é EC P-256 → `IllegalArgumentException` (este ramo não tem teste: exigiria criar chave não P-256 no aparelho). Quem dirige a ponte é `verification/android/run_device.py` via `python3 verification/run_p0.py --device` (instruções em [verification/README.md](../../verification/README.md#interoperabilidade-em-aparelho-real-p0b-task-5-opt-in)); ele monta os APKs (`assembleDebug`, `assembleDebugAndroidTest`), instala, roda e desinstala. Resultado em SM-A055M/Android 15: `hardwareStatus=hardware` com raízes de produção; a assinatura P1363 do aparelho é verificada em Python (`cryptography`) e pelo host .NET (NSign), o que dá a verificação independente que faltava no teste instrumentado.
+`app-lab/src/androidTest/.../DeviceBridge.kt` é uma ponte só de laboratório, fora da biblioteca `signer`: cada `am instrument -w -r -e class br.com.ebees.sentomaru.lab.DeviceBridge -e sentomaruOp generate|sign|delete ...` executa um passo e devolve o resultado em `INSTRUMENTATION_STATUS` (código 7). Sem `sentomaruOp` o teste retorna cedo (cláusula de guarda, sem `Assume`), então `connectedDebugAndroidTest` continua verde. `sign` usa `KeystoreSigner.useExisting(alias)` para vincular a chave gerada numa chamada anterior (outro processo); falha de keystore → `IllegalStateException`, chave que não é EC P-256 → `IllegalArgumentException` (este ramo não tem teste: exigiria criar chave não P-256 no aparelho). Quem dirige a ponte é `verification/android/run_device.py` via `python3 verification/run_p0.py --device` (instruções em [verification/README.md](../../verification/README.md#interoperabilidade-em-aparelho-real-p0b-task-5-opt-in)); ele monta os APKs (`assembleDebug`, `assembleDebugAndroidTest`), instala, roda e desinstala. Resultado no aparelho de referência/Android 15: `hardwareStatus=hardware` com raízes de produção; a assinatura P1363 do aparelho é verificada em Python (`cryptography`) e pelo host .NET (NSign), o que dá a verificação independente que faltava no teste instrumentado.
 
 ## O que os sinais medem
 
@@ -113,7 +113,7 @@ artefato `signals-rasp` **e** usar `raspDetectors()`:
 // build.gradle.kts: implementation("br.com.ebees.sentomaru:signals-rasp:<versão>")
 val collector = SignalsCollector(
     detectors = SignalsCollector.defaultDetectors() + SignalsCollector.raspDetectors(),
-    deadlineMs = SignalsCollector.RASP_DEADLINE_MS, // 100 ms, medido em aparelho (p95 frio 84 ms no SM-A055M)
+    deadlineMs = SignalsCollector.RASP_DEADLINE_MS, // 100 ms, medido em aparelho (p95 frio 84 ms no aparelho de referência)
 )
 val snapshot = collector.snapshot(context) // fora da thread principal
 ```
@@ -149,13 +149,13 @@ pacote, propriedade ou identificador. Sem permissão nova, sem API oculta (lint)
   (`perf-app`, `SignalsStrictModeInstrumentedTest`) só roda em aparelho. Limitações de cada sinal no
   catálogo; o custo em aparelho é medido no `perf-app` (`perf-app`, `RaspCostInstrumentedTest`, rodado por
   `python3 verification/run_d05c_cost.py --device`) e as fixtures
-  adversariais ficam na matriz `verification/rasp/matrix-v1.json`, com a camada JVM
+  adversariais ficam na matriz the vendor's matrix check, com a camada JVM
   no CI e a de emulador medida num AVD com KVM pelo `RaspMatrixInstrumentedTest` do `perf-app`
   (`python3 verification/run_d05d_emulator.py --emulator`; build não depurável com `-Psentomaru.d05dRelease=true`).
   O que pode e o que não pode ser dito sobre esses sinais consta na ficha de alegações do Shield Android, mantida pela operação do Sentomaru e não distribuída neste repositório.
 - **`budgetMs` de `root_artifacts`.** O catálogo 1.3.0 publicado antes do ajuste (plugin Flutter 0.12.0 e
   versões antigas da API) tem `budgetMs` 10 em `root_artifacts`; o do repositório atual tem 11 (medição em aparelho no
-  SM-A055M) e `updatedAt` `2026-10-22T00:00:00Z`. A versão não subiu porque `budgetMs` não viaja no snapshot nem é
+  aparelho de referência) e `updatedAt` `2026-10-22T00:00:00Z`. A versão não subiu porque `budgetMs` não viaja no snapshot nem é
   conferido pelo servidor.
 
 ## Sinais consultivos de aparelho por opção (catálogo 1.8.0; `known_malware` no 1.9.0)
@@ -219,7 +219,7 @@ val detectors = SignalsCollector.screenDetectors()
   `DETECT_SCREEN_RECORDING`). Abaixo da API 35 o `screen_recording` não é medido (`partial`) e, sem display achado, o estado
   é UNKNOWN, nunca NOT_DETECTED. Display virtual sem a flag pública (típico de compartilhamento por `MediaProjection`) não
   aparece; o pacote que criou o display não é lido (exigiria API oculta).
-- As duas permissões são de proteção *normal* (sem diálogo) e **não** vêm no manifesto do módulo `signals` (Shield #2): o app que instala o `ScreenShield` as declara no próprio manifesto. Sem elas, `screen_capture` fica `no_screens` e o indicador `screen_recording` não é medido (UNKNOWN, nunca NOT_DETECTED). Host que só lê sinais (Flutter, React Native) não herda permissão alguma; `verification/sdk/check_merged_manifest.py` confere o manifesto mesclado do host.
+- As duas permissões são de proteção *normal* (sem diálogo) e **não** vêm no manifesto do módulo `signals` (Shield #2): o app que instala o `ScreenShield` as declara no próprio manifesto. Sem elas, `screen_capture` fica `no_screens` e o indicador `screen_recording` não é medido (UNKNOWN, nunca NOT_DETECTED). Host que só lê sinais (Flutter, React Native) não herda permissão alguma; the vendor's check merged manifest check confere o manifesto mesclado do host.
 - Prova em aparelho e custo medido: pendentes (A05m, na janela expressa). Até lá: implementado e testado em JVM.
 
 ## Sinais de contexto de sessão: `location_mock` e `call_active` (opt-in, catálogo 1.13.0)
@@ -236,7 +236,7 @@ val detectors = SignalsCollector.sessionDetectors()   // fora de todas as outras
   (NOT_DETECTED, no instante da leitura), `partial` (UNKNOWN). Nunca número, contato, duração ou app. Um app com `MODIFY_AUDIO_SETTINGS` muda
   o modo sem chamada (falso positivo).
 - Os dois são declarados pelo app e evadíveis; alimentam `deviceSignals.mockLocation` e `sessionSignals.callActive` da API de Fraude
-  (`contracts/fraud/api-v1.md`, "Declared mock location and active call"). Implementados e testados em JVM por duplos; **prova em aparelho pendente**.
+  (the Sentomaru api contract, "Declared mock location and active call"). Implementados e testados em JVM por duplos; **prova em aparelho pendente**.
 
 Eventos informativos: tipos `accessibility_risk`, `overlay`, `ime_untrusted`, `synthetic_input` e `known_malware`, só com códigos fixos.
 `budgetMs` provisório: a medição em aparelho (como a dos demais sinais) é um passo à parte, com janela expressa.
@@ -286,13 +286,13 @@ val snapshot = collector.snapshot(context) // fora da thread principal
   vetores `contracts/shield/code-digests-v1-vectors.json`, splits, cache, espera e interrupção). Snapshot com as 15
   capacidades ≤ 4 KiB (limite do cabeçalho).
 - Custo em aparelho (`perf-app` `AppIntegrityCostInstrumentedTest`,
-  `python3 verification/run_d12d_cost.py --device`): no SM-A055M, p95 quente abaixo de 0,6 ms em cada sinal; hash de
+  `python3 verification/run_d12d_cost.py --device`): no aparelho de referência, p95 quente abaixo de 0,6 ms em cada sinal; hash de
   um APK grande (58 MiB de código, o teto do APK gordo) ~110 ms de CPU por processo novo, em segundo
   plano, então a primeira chamada de cada processo sai `reason=timeout` (p95 de 19,4 ms, acima do `budgetMs` 15 no
   frio) e o agregado fica pronto ~120–160 ms depois; chave da reatestação ~56 ms quente e ~75 ms fria no p50 (TEE, sem
   StrongBox no aparelho; só os passos de Keystore). Limites no relatório.
 
-**Reatestação (`SentomaruReattestation`, contrato `contracts/api/reattestation-v1.md`).**
+**Reatestação (`SentomaruReattestation`, contrato the Sentomaru re-attestation API contract).**
 
 ```kotlin
 val reattestation = SentomaruReattestation(client, "https://api.example/reattest/challenge", "https://api.example/reattest")
@@ -435,7 +435,7 @@ val http = OkHttpClient.Builder().addSentomaru(client, routes, signalEvents).bui
   MockWebServer; a recusa da plataforma é imitada por um `TrustManager` de teste com a mesma exceção), `TransportEventsTest`
   (`signals`); instrumentado `PinnedHostsInstrumentedTest` (`sample-app`, leitura da meta-data pelo `PackageManager`),
   só compilado nesta fatia. A recusa real da plataforma foi provada: no emulador API 34 e 28 e
-  no SM-A055M, `pin_mismatch` na chave não fixada pelo OkHttp e pelo `SentomaruUrlConnection`.
+  no aparelho de referência, `pin_mismatch` na chave não fixada pelo OkHttp e pelo `SentomaruUrlConnection`.
 
 ## Limites (laboratório)
 
@@ -453,7 +453,7 @@ val http = OkHttpClient.Builder().addSentomaru(client, routes, signalEvents).bui
 - Jobs de CI `sdk-core` e `sdk-android-unit` rodam as tarefas sem aparelho.
 - C-04b: `com.google.android.play:integrity:1.6.0` no módulo `sdk` (token consultivo do Play Integrity na inscrição,
   ligado por `SentomaruConfig.playIntegrityCloudProjectNumber`; qualquer falha inscreve sem o token). Contrato:
-  `contracts/api/play-integrity-v1.md`.
+  the Sentomaru Play Integrity API contract.
 
 ## Gates P1 (antes de sair do laboratório)
 
@@ -461,7 +461,7 @@ val http = OkHttpClient.Builder().addSentomaru(client, routes, signalEvents).bui
 
 ## Chave transacional com presença humana (só Android, sem servidor ainda)
 
-`SentomaruTransactionSigner` gera uma segunda chave EC P-256 (`<alias da instalação>.tx`) que o Keystore só libera depois de uma autenticação do usuário por uso, e produz o valor de `x-sentomaru-tx-signature`. Contrato: `contracts/api/transaction-keys-v1.md`.
+`SentomaruTransactionSigner` gera uma segunda chave EC P-256 (`<alias da instalação>.tx`) que o Keystore só libera depois de uma autenticação do usuário por uso, e produz o valor de `x-sentomaru-tx-signature`. Contrato: the Sentomaru transaction-keys API contract.
 
 - **A promessa é presença humana na assinatura**, não que a pessoa viu o valor.
 - O app implementa `TransactionAuthenticator` com o `BiometricPrompt` (`CryptoObject(signature)`), declara `USE_BIOMETRIC` e a dependência `androidx.biometric`; o SDK não traz nenhuma. O prompt roda **fora** do interceptor: `signer.sign(operationId, bodyBytes, authenticator, onSigned = { request.header(...) }, onError = ...)`. No `onAuthenticationError` passe `errorCode` a `BiometricErrors.map(...)`.

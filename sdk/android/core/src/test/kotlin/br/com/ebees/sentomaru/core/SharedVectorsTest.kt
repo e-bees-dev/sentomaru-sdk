@@ -9,7 +9,7 @@ import java.io.File
 import java.util.Base64
 
 /**
- * SDK-VEC-1..4 on the JVM side. Inputs and expectations come from verification/sdk/gen_vectors.py (independent
+ * SDK-VEC-1..4 on the JVM side. Inputs and expectations come from the vendor's vector generator (independent
  * Python implementation, http-message-signatures). ECDSA is randomized: bases, digests and Signature-Input are
  * compared byte for byte; signatures are verified, never compared.
  */

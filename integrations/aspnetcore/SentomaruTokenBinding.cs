@@ -5,7 +5,7 @@ using System.Text;
 namespace Sentomaru.AspNetCore;
 
 /// <summary>
-/// E-06 (contracts/trust/session-bindings-v1.md): the hash that ties an IdP token to the app's hardware grant,
+/// E-06 (the Sentomaru session bindings contract): the hash that ties an IdP token to the app's hardware grant,
 /// <c>hex(SHA-256("{org}:{app}:{idpIssuer}:{sub}:{tokenIdentifier}"))</c>. It is computed here, in the consumer, from the claims of the
 /// principal that authentication already validated; the token, <c>sub</c> and the token identifier never reach Sentomaru.
 /// </summary>

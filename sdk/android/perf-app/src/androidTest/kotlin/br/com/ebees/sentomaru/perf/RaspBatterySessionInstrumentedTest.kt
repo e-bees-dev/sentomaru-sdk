@@ -9,7 +9,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * D-05c battery session, driven by `verification/run_d05c_cost.py --battery-session` (never in CI; reported, not
+ * D-05c battery session, driven by `the vendor's run d05c cost check --battery-session` (never in CI; reported, not
  * gated). Arguments:
  * - `d05cBattery` = `collect` (one full D-05 collection per tick, the ExampleApp signals cache period) or `control`
  *   (same process, same ticks, no collection); absent, the test returns at once;

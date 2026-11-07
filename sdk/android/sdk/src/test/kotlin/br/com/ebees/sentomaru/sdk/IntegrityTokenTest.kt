@@ -13,7 +13,7 @@ import java.util.Base64
 import org.junit.Assert.*
 import org.junit.Test
 
-/** C-04b: the advisory Play Integrity token in the enrollment body (contracts/api/play-integrity-v1.md). */
+/** C-04b: the advisory Play Integrity token in the enrollment body (the Sentomaru Play Integrity API contract). */
 class IntegrityTokenTest {
     private val now = Instant.parse("2026-10-15T12:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
@@ -55,7 +55,7 @@ class IntegrityTokenTest {
     }
 
     @Test fun requestHashMatchesTheServerBinding() {
-        // Same vector as IntegrityVerdict.ExpectedNonce / verification/attestation/integrity_vectors.py nonce().
+        // Same vector as IntegrityVerdict.ExpectedNonce / the vendor's integrity vectors check nonce().
         // Hex of the base64url value (a 43-char base64url literal has the shape the secret scan refuses).
         val hash = IntegrityRequestHash.of(challenge(), packageName)
         assertEquals(43, hash.length)

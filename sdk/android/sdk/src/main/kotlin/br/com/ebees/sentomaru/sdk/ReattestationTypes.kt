@@ -8,7 +8,7 @@ import java.util.Base64
 
 /**
  * D-12c: the answer of the consumer's reattestation route, passed through from the private API
- * (`contracts/api/reattestation-v1.md`): HTTP status, body text and the `Retry-After` seconds when present. The SDK reads
+ * (the Sentomaru re-attestation API contract): HTTP status, body text and the `Retry-After` seconds when present. The SDK reads
  * the JSON `code` of a refusal itself; the consumer only forwards.
  */
 class ReattestationAnswer @JvmOverloads constructor(val status: Int, val body: String, retryAfterSeconds: Long? = null) {

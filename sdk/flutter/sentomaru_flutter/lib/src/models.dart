@@ -135,7 +135,7 @@ class SentomaruConfig {
 }
 
 /// D-12e (0.13.0): the consumer's public reattestation routes, which forward to `POST …/reattestations/challenges` and
-/// `POST …/reattestations` (`contracts/api/reattestation-v1.md`). Both https, on a host of
+/// `POST …/reattestations` (the Sentomaru re-attestation API contract). Both https, on a host of
 /// [SentomaruConfig.allowedHosts]. [minInterval] is how long [SentomaruClient.reattestationDue] stays false after a
 /// completed reattestation (in memory only; a new process may ask again and the server answers 429); a positive
 /// whole number of seconds, 24 h by default (the server's default for the scope).

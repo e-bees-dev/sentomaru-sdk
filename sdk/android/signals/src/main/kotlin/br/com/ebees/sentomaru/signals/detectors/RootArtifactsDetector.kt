@@ -77,7 +77,7 @@ class RootArtifactsDetector(
 
     // The whole file as one text and two regex searches: the markers case-insensitive (no marker holds a separator, so
     // a match is inside one field) and the KernelSU source as a whole, case-sensitive field. Line by line, field by field
-    // with contains(ignoreCase) it cost ~28 ms warm and ~0.3 s cold on the SM-A055M (169 lines, D-05c). Same answer
+    // with contains(ignoreCase) it cost ~28 ms warm and ~0.3 s cold on the reference device (169 lines, D-05c). Same answer
     // except on Android for a dotted or dotless I (ICU folding: "magİsk" no longer matches); real mount names are ASCII.
     private fun hasRootMarker(lines: List<String>): Boolean {
         val text = lines.joinToString("\n")

@@ -10,8 +10,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * D-05d-2: the emulator layer of the RASP matrix (`verification/rasp/matrix-v1.json`), driven by
- * `verification/run_d05d_emulator.py` on an AVD (never on the SM-A055M, never in the PR CI).
+ * D-05d-2: the emulator layer of the RASP matrix (the vendor's matrix check), driven by
+ * the vendor's run d05d emulator check on an AVD (never on the reference device, never in the PR CI).
  * Arguments:
  * - `d05d` = `collect` or `debugger`; absent, the test returns at once (guard clause, as `RaspCostInstrumentedTest`),
  *   so a plain `connectedDebugAndroidTest` stays green without measuring anything;

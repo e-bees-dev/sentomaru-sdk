@@ -8,7 +8,7 @@ using Sentomaru.AspNetCore;
 namespace Sentomaru.Gateway.Verifier;
 
 /// <summary>
-/// The gateway verifier host (D-17c, contract <c>contracts/api/gateway-verifier-v1.md</c>). One instance per scope
+/// The gateway verifier host (D-17c, contract <c>the Sentomaru gateway verifier contract</c>). One instance per scope
 /// (D-17x9). For every request the gateway asks about: the route table gives the operation and mode (403
 /// <c>operation-unmapped</c> outside it), the decision core of the adapter (<see cref="SentomaruEvaluationPipeline"/>,
 /// with <see cref="SentomaruExtractor"/> and no <c>UsePathBase</c>, so the @target-uri is built as the attribute builds

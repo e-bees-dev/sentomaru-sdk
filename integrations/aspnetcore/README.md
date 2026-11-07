@@ -63,7 +63,7 @@ do `HttpClient` também para a inscrição. Os dois têm teto de 5 min, conferid
   step-up), todo `challenge` vira 401 `challenge-required` e o `ISentomaruChallengeHandler` nunca é chamado.
 - Para quem chama o núcleo: rode a operação **uma vez** num `Proceed`; num `Refuse`, responda `StatusCode` com `Error`
   como corpo JSON. `Reason` diz por que roda (`Verified`, `Observe`, `Disabled`, `FailOpen`, `StepUpProceeded`).
-- Uso previsto: o verificador de gateway (`contracts/api/gateway-verifier-v1.md`). Nada muda para quem só usa o
+- Uso previsto: o verificador de gateway (the Sentomaru gateway verifier contract). Nada muda para quem só usa o
   atributo.
 - **Correção de segurança:** com `PublicBaseUrl` (ou `PublicBaseUrlOverride`), um caminho que
   comece com `//` (ou `/\`) era uma referência de rede na resolução do `@target-uri`: `//evil.example/x` virava
@@ -80,7 +80,7 @@ do `HttpClient` também para a inscrição. Os dois têm teto de 5 min, conferid
 
 ## 4.10.0 — vínculo do token do IdP ao hardware (só acréscimos; não publicado)
 
-Proposta ao dono (contrato `contracts/trust/session-bindings-v1.md`, OpenAPI v1.15). Desligado por padrão.
+Proposta ao dono (contrato the Sentomaru session bindings contract, OpenAPI v1.15). Desligado por padrão.
 
 - **Configuração:** `Sentomaru:TokenBindingIdpIssuer` = o `iss` do seu IdP. Com ele, o filtro calcula `externalTokenBindingHash = SHA-256(org:app:idpIssuer:sub:tokenIdentifier)` com os claims do **principal já autenticado** (`sub`; `sid`, senão `jti`) e o envia na avaliação. O adaptador nunca lê nem envia o token.
 - **Registro (no login):** depois de inscrever/renovar o aparelho, chame `BindSessionAsync` com `installationId`, `grantSessionId` (o grant vivo), um `subjectRef` que seja pseudônimo (nunca e-mail, CPF ou nome), o mesmo hash (`SentomaruTokenBinding.ForPrincipal`) e o slug do emissor. A cada refresh do IdP, `RotateSessionBindingAsync` troca o hash sem nova atestação. `ClearSessionBindingAsync` apaga o vínculo (pedido do titular).
@@ -92,7 +92,7 @@ Proposta ao dono (contrato `contracts/trust/session-bindings-v1.md`, OpenAPI v1.
 - `ISentomaruClient.IssueReattestationChallengeAsync` e `ReattestAsync` (padrão: 501 `not-implemented`) e os DTOs
   `ReattestationEnvelopeDto`, `ReattestationChallengeResponseDto`, `ReattestationResponseDto`. `SentomaruEnrollmentControllerBase`
   ganha `IssueReattestationChallengeAsync` e `ReattestAsync`, uma linha por rota, como a inscrição e a renovação:
-  `POST …/reattestations/challenges` e `POST …/reattestations` (contrato `contracts/api/reattestation-v1.md`).
+  `POST …/reattestations/challenges` e `POST …/reattestations` (contrato the Sentomaru re-attestation API contract).
 - Chegam ao app: 400, 401 `proof-invalid` e `challenge-invalid`, 403 `reattestation-disabled`, `reattestation-unsupported`,
   `session-expired` e as demais recusas de sessão, 409, 429 e 503 `verifier-unavailable` (o desafio não foi consumido; o SDK
   tenta mais uma vez). O resto segue a regra das outras rotas (credencial do backend vira 502, indisponibilidade vira 503).
@@ -289,7 +289,7 @@ marcadores no desafio. Um consumidor ainda num adaptador antigo que caia no fall
 
 ## 3.0.0 — renomeação (versão nova de contrato)
 
-- `DeviceTrustLevel` → `DeviceAssuranceLevel`; propriedade `TrustLevel` → `AssuranceLevel` e parâmetro `trustLevel` → `assuranceLevel` em `[SentomaruIntegrity]`. Membros `ZeroTrust` (padrão) e `Observe` inalterados. Sem alias: código que use o nome antigo não compila. Tabela completa em `docs/hardening/rename-migration.md`.
+- `DeviceTrustLevel` → `DeviceAssuranceLevel`; propriedade `TrustLevel` → `AssuranceLevel` e parâmetro `trustLevel` → `assuranceLevel` em `[SentomaruIntegrity]`. Membros `ZeroTrust` (padrão) e `Observe` inalterados. Sem alias: código que use o nome antigo não compila. Tabela completa em `the rename migration table of the vendor`.
 - `x-sentomaru-signals` só é encaminhado quando chega com **um** valor; com vários valores é descartado (tratado como ausente = desconhecido).
 - Sinais ausentes, descartados ou obsoletos em operação sensível da política (na política padrão embutida: `criar_demanda`, `concluir_demanda`, `checkout`) viram `challenge`, que este filtro responde com **401 `challenge-required`**. Até a 4.4.0 não há fluxo de step-up (a 4.5.0 acrescenta o gancho opcional para `step_up`, acima): na prática a operação fica bloqueada até o app mandar sinais válidos. É fail-closed por desenho.
 

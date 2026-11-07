@@ -1,4 +1,10 @@
-## 0.20.0-rc.1 (candidato; não publicado)
+## 0.20.0-rc.2 (candidato)
+
+Mesmo código da `0.20.0-rc.1`, com o SDK Android `0.2.0-rc.2`. O que muda é o que acompanha o pacote: o SBOM do release lista os pacotes Pub
+resolvidos (versão e SHA-256) a partir de um `pubspec.lock` gerado com o Flutter fixado, e os textos públicos (comentários, READMEs, links)
+não citam mais caminhos nem detalhes que só existem no repositório do fabricante.
+
+## 0.20.0-rc.1 (candidato)
 
 Mudanças de acréscimo: nenhuma API existente foi removida nem mudou de assinatura. Quem não usa as opções novas
 não precisa alterar o código do app (veja abaixo o que muda no manifesto e nas dependências). Esta versão foi lida e testada no repositório; o que não foi provado em aparelho ou contra um
@@ -258,8 +264,8 @@ servidor está dito em cada item.
 
 ## Sem versão nova (2026-10-22, catálogo: `budgetMs` de `root_artifacts`)
 
-* O catálogo 1.3.0 publicado antes de 22/10 (plugin 0.12.0 e o HML na API `1fe463a`) tem `budgetMs` 10 em
-  `root_artifacts`; o do repositório desde o #48 tem 11 (medição D-05c no SM-A055M), com `updatedAt`
+* O catálogo 1.3.0 publicado antes de 22/10 (plugin 0.12.0 e o HML na API  de homologação) tem `budgetMs` 10 em
+  `root_artifacts`; o do repositório desde o #48 tem 11 (medição D-05c no aparelho de referência), com `updatedAt`
   `2026-10-22T00:00:00Z`. A versão do catálogo não subiu porque `budgetMs` não viaja no snapshot nem é conferido pelo
   servidor; a cópia do catálogo no plugin (`SentomaruSignalsCatalog`) não guarda `budgetMs` e não muda.
 
@@ -463,12 +469,12 @@ servidor está dito em cada item.
 
 * `SentomaruConfig.playIntegrityCloudProjectNumber` (opcional): liga o token consultivo do Play Integrity na inscrição
   (SDK Android `com.google.android.play:integrity:1.6.0`). Qualquer falha inscreve sem o token; nada muda para quem
-  não configura o campo. Contrato: `contracts/api/play-integrity-v1.md`.
+  não configura o campo. Contrato: the Sentomaru Play Integrity API contract.
 
 ## 0.3.0 (2026-10-10, renomeação de contrato) — BREAKING
 
 Mapa de nomes aprovado (sem marcas de terceiros), aplicado como versão nova de contrato, sem aliases.
-Tabela completa: `docs/hardening/rename-migration.md`.
+Tabela completa: the rename migration table of the vendor.
 
 * `SentomaruThreatEvent` → `SentomaruRiskEvent`; campo `threatScore` (int, padrão 0) → `riskIndex` (`int?`, sem
   padrão: ausência ≠ sem risco); novo `riskBand` (`String?`).

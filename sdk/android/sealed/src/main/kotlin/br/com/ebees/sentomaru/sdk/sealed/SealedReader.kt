@@ -23,7 +23,7 @@ internal class SealedHeader(val dek: ByteArray, val stringsPath: String?)
 
 /**
  * D-14b: the contract's reader (contracts/devsecops/cli-v1.md, asset-encryption, "Leitura"), in the order of the
- * checks the reference reader of `verification/devsecops/test_sealed_vectors.py` follows: header absent → not-sealed;
+ * checks the reference reader of the vendor's reference reader follows: header absent → not-sealed;
  * header shape → format-unsupported; header size or tag → integrity; entry absent → not-sealed (never plain in a
  * sealed package); entry shape → format-unsupported; entry size, declared length, tag, DEFLATE stream → integrity.
  * Sizes are checked before any AEAD; inflation stops at the declared length + 1 byte.

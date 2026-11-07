@@ -68,7 +68,7 @@ open class RaspEnv(
 
         val CLEAN_BUILD = mapOf(
             "FINGERPRINT" to "samsung/a05mub/a05m:15/AP3A.240905.015.A2/A055MUBS6CYG1:user/release-keys",
-            "MODEL" to "SM-A055M",
+            "MODEL" to "SM-T000Z",
             "MANUFACTURER" to "samsung",
             "BRAND" to "samsung",
             "DEVICE" to "a05m",

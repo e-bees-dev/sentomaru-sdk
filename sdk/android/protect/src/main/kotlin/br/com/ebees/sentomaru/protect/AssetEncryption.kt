@@ -48,7 +48,7 @@ object AssetEncryption : Control {
     const val ASSETS_CONFIG = "base/assets.pb"
     const val MAX_FILES = 64
     /**
-     * D-14e (owner decision, conservative): the CLI seals at most 1 MiB of plain bytes per file and refuses a larger one
+     * D-14e (vendor decision, conservative): the CLI seals at most 1 MiB of plain bytes per file and refuses a larger one
      * at build time (`asset-too-large`), because the reader holds the whole file in memory (no streaming reader) and the
      * D-14d peak was measured above 3x the plain size. Only with the laboratory gate (`SENTOMARU_LAB=1`, not
      * contractual) does the format ceiling [FORMAT_MAX_FILE_BYTES] apply, so the D-14d proof can still seal its 4 MiB

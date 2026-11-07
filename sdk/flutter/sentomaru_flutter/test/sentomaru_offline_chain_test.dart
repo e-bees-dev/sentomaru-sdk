@@ -1,4 +1,7 @@
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -87,4 +90,42 @@ void main() {
     expect(body, Uint8List.fromList([123, 125]));
     expect((calls.single.arguments['seals'] as List).map((s) => (s as Map)['seq']), [0, 1]);
   });
+
+  // The plugin signs nothing and hashes nothing (the native SDK does, and the server verifies): what it owns is the permit text it parses and the
+  // seal fields it passes through. These read the shared vectors of contracts/sdk/ for that: the permit made from a vector's fields is accepted
+  // as received, and every vector seal is carried to the native reconciliation unchanged, in order, with its `seq` and `bootCount` readable
+  // (4294967295 is the unavailable boot of the iOS vectors). The chain hashes and signatures of the vectors are checked by the Kotlin, Swift,
+  // C# and Python readers, not here (the vendor's shared-vectors matrix).
+  for (final file in ['offline-proof-chain-v1-vectors.json', 'offline-proof-chain-v1-unavailable-vectors.json']) {
+    test('the shared vectors of $file: permit parsed as received, seals carried unchanged', () async {
+      final vectors = jsonDecode(File('../../../contracts/sdk/$file').readAsStringSync()) as Map<String, dynamic>;
+      final permitText = jsonEncode({
+        'permitId': (vectors['permitId'] as String).toUpperCase(),
+        'chainSeed': vectors['chainSeed'],
+        'issuedAt': vectors['issuedAt'],
+        'validUntil': vectors['validUntil'],
+        'maxItems': 50,
+        'driftToleranceSeconds': vectors['driftToleranceSeconds'],
+      });
+      final permit = SentomaruOfflinePermit.parse(permitText);
+      expect(permit.permitId, vectors['permitId']);
+      expect(permit.json, permitText);
+      expect(permit.driftToleranceSeconds, vectors['driftToleranceSeconds']);
+      expect(permit.validUntil.isAfter(permit.issuedAt), isTrue);
+      var cases = 0;
+      for (final c in vectors['cases'] as List) {
+        final items = [for (final i in (c as Map)['items'] as List) Map<String, Object>.from(i as Map)];
+        if (items.isEmpty) continue;
+        cases++;
+        final seals = [for (final i in items) SentomaruOfflineSeal(i)];
+        expect([for (final s in seals) s.seq], [for (final i in items) i['seq']]);
+        expect([for (final s in seals) s.bootCount], [for (final i in items) i['bootCount']]);
+        calls.clear();
+        reply = (_) => Uint8List(0);
+        await const SentomaruOfflineChain().reconcileBody(permit: permit, seals: seals);
+        expect((calls.single.arguments['seals'] as List).map((s) => Map<String, Object>.from(s as Map)).toList(), items);
+      }
+      expect(cases, greaterThan(0));
+    });
+  }
 }

@@ -22,7 +22,7 @@ class SyntheticInputDetector(
 
     override fun discarded() { if (drainedInjected) monitor.restoreInjected(); drainedInjected = false }
 
-    // Not `Evidence.collect`: the D-05 matrix check (verification/check_rasp_matrix.py) reads every detector that uses it.
+    // Not `Evidence.collect`: the D-05 matrix check (the vendor's detector matrix check) reads every detector that uses it.
     override fun detect(context: Context): SignalObservation {
         val observedAt = clock.instant().toString()
         return try {

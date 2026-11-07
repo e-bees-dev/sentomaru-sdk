@@ -268,7 +268,7 @@ enum CBOR: Equatable {
     var data: Data? { if case .bytes(let d) = self { return d } else { return nil } }
 }
 
-/// The D-09c server checks the SDK's assertion must pass (contracts/p1-apple-attestation-profile.md, "Assertion na
+/// The D-09c server checks the SDK's assertion must pass (the Sentomaru Apple attestation profile, "Assertion na
 /// renovação", steps 2–6, with the D-09d authData): CBOR with exactly `signature` and `authenticatorData` (37 fixed
 /// bytes; AT not interpreted; with ED exactly one CBOR map after them, read with the StrictCbor rules of
 /// `CBOR.decodeStrict`; without ED nothing), rpIdHash of the App ID,

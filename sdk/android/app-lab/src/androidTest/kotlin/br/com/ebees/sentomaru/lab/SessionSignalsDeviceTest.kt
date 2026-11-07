@@ -15,7 +15,7 @@ import org.junit.runner.RunWith
 
 /**
  * LAB ONLY. Proof on a real device of F-07 `location_mock` and F-08 `call_active` (catalog 1.13.0), driven by
- * `docs/fraud/F07_F08_ROTEIRO_APARELHO.md`:
+ * the vendor's F07 F08 ROTEIRO APARELHO notes:
  * `am instrument -w -r -e class br.com.ebees.sentomaru.lab.SessionSignalsDeviceTest -e sentomaruStep <label> ...`.
  * Runs the real `SignalsCollector.sessionDetectors()` once and reports, per capability, the state and the fixed
  * `result` code (`sentomaru.<capability>.state` / `.result`) plus `sentomaru.step`. Nothing else: no coordinate,

@@ -61,7 +61,7 @@ public struct DeviceCheckAppAttestService: AppAttestService {
 }
 #endif
 
-/// The `clientDataHash` values the profile binds (contracts/p1-apple-attestation-profile.md).
+/// The `clientDataHash` values the profile binds (the Sentomaru Apple attestation profile).
 public enum AppAttestBinding {
     /// Enrollment: `SHA-256(attestationChallenge ‖ SPKI)` (32 raw challenge bytes, DER of the enrolled request key).
     public static func attestationClientDataHash(attestationChallenge: Data, spki: Data) -> Data {

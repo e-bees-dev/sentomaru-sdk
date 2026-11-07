@@ -1,5 +1,5 @@
 // D-07e / C-03b lab-only entrypoint. NOT the app's `main` (that is lib/main.dart, unchanged):
-// verification/run_d07e_device.py builds this target on its own with
+// the vendor's run d07e device check builds this target on its own with
 //   flutter build appbundle --release --target lib/d07e_pinning_main.dart --dart-define=D07E_SECTION=<base64url JSON>
 // and never ships it. On launch it runs one fixed pass and prints one `d07eCase=<json>` line per case to logcat (tag
 // `flutter`), then `d07eDone=<json>`; the runner reads only those lines, by the app's pid.

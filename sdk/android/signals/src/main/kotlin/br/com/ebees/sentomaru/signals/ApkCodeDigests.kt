@@ -6,9 +6,9 @@ import java.security.MessageDigest
 import java.util.zip.ZipFile
 
 /**
- * D-12c: the code digests of algorithm `apk-code-sha256-v1` (contracts/shield/registry-v1.md, "Code digests") over the
+ * D-12c: the code digests of algorithm `apk-code-sha256-v1` (the Shield registry contract, "Code digests") over the
  * installed APKs, and their aggregate (normative since D-12a: SHA-256 of `path\nsha256\n` per file, in ascending ordinal
- * order of path). Same file set as `tools/shield/code_digests.py`: every root `classes*.dex` (no leading zero) and every
+ * order of path). Same file set as the vendor's code-digest tool: every root `classes*.dex` (no leading zero) and every
  * `lib/<abi>/<name>.so`, uncompressed bytes. With splits, the files of every APK are listed together; the same path in
  * two APKs is refused (which one would the platform load?).
  *

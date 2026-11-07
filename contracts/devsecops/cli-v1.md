@@ -2,7 +2,7 @@
 
 Contrato da CLI de proteção pós-build do Sentomaru DevSecOps (G-03). Recebe um APK ou AAB **já compilado** e devolve o
 artefato protegido, com relatório, sem alterar o código-fonte do app (dentro dos limites abaixo), **exceto a
-assinatura de rede**, que é uma linha no app (`network-signing`, G-03c, decisão do dono de 16/10/2026). Decisão D-C1 (dono,
+assinatura de rede**, que é uma linha no app (`network-signing`, G-03c, decisão do fornecedor de 16/10/2026). Decisão D-C1 (fornecedor,
 16/10/2026): **a CLI roda só no ambiente do cliente** (máquina ou CI). Nenhum serviço do Sentomaru recebe, altera ou
 guarda o binário; só metadados (digests, ids, versões) saem da máquina. Arquitetura: [ADR 0001](../../docs/devsecops/adr-0001-post-build.md).
 Esquema do perfil: [`protect-profile-v1.schema.json`](protect-profile-v1.schema.json).
@@ -143,7 +143,7 @@ sentomaru verify receipt|audit-export [opções do verificador]   # conferência
 > `SENTOMARU_LAB=1` no ambiente, aplica `runtime-injection` (e, desde a D-07b, `network-pinning`, liberado na D-07f e aplicado aqui do mesmo jeito, e desde a D-14c, `asset-encryption`, liberado na D-14e e aplicado aqui do mesmo jeito; `network-signing` e, desde a D-08d, `build-obfuscation` continuam recusados com `control-failed`) a um AAB sem credencial, sem conferência de direito e sem
 > registro, com `--sign none`. A saída se chama `<nome>.lab.aab`, o relatório traz `"lab": true`, o aviso
 > `lab-unregistered` e `registration.status = "not-registered"`. Serve só para laboratório e testes; nunca para
-> distribuição. Sai quando o gate em aparelho (`verification/run_g03b2_device_gate.py`) usar um registro local.
+> distribuição. Sai quando o gate em aparelho (the vendor's run g03b2 device gate check) usar um registro local.
 > Desde a D-16-lab-gate, o gate (`SENTOMARU_LAB=1`) só vale no `--dry-run` (que não registra) e com `--lab-unregistered`:
 > numa execução real registrada a CLI o recusa (saída 2, `usage`, `detail` `lab-gate-registered`, ver abaixo).
 
@@ -220,7 +220,7 @@ etapa `inject` → `instrument` → `harden`, e dentro da etapa por `order`; dep
 | Controle | Fatia | Etapa / ordem | Muda no binário | Pré-requisitos |
 |---|---|---|---|---|
 | `runtime-injection` | G-03b (onda 1) | inject / 10 | DEX do runtime acrescentado (dependências realocadas para pacote próprio, exceto os tipos de rede que o app compartilha); `ContentProvider` de inicialização declarado no manifesto, `exported=false`, no processo principal; permissões que o runtime precisa e o app não declara → recusa. **Sem recursos**: o runtime não traz `res/` (não há mescla de `resources.arsc`). Preserva `versionCode`, `versionName`, `targetSdk` e as permissões do app. AAB: edita o manifesto e o DEX do módulo `base` (formato protobuf) e valida com `bundletool` | permissão ausente → `permission-missing`; DEX acima do limite de métodos sem multidex → `app-incompatible`; app que já declara o provider do Sentomaru em `<application>` (protegido duas vezes) → `app-incompatible`, também no `--dry-run` (G-06) |
-| `network-signing` | G-03c (onda 1) | instrument / 10 | **Nada** (decisão do dono, 16/10/2026: sem reescrita de DEX). A assinatura RFC 9421 é o transporte do SDK que o app liga **numa linha**, com os `hosts` e `routes` do perfil: Android `OkHttpClient.Builder().addSentomaru(client, SentomaruRoutes.of(hosts, routes))`, Flutter `dio.addSentomaru(client, routes: SentomaruRoutes.fromProfileSection(secao))`; Android com `HttpURLConnection` (S2, CLI 0.4.0): a tabela montada uma vez e cada chamada por `SentomaruUrlConnection.send(client, routes, método, url, corpo, cabeçalhos)`. Requisição sem operação declarada cujo host e caminho casam com uma rota é assinada como essa operação; operação declarada (cabeçalho ou etiqueta) prevalece. **Casamento:** as rotas são tentadas **na ordem do perfil e a primeira que casa vence** (rota literal antes de uma rota com `*` que também a cobriria); `*` casa exatamente um segmento não vazio; o resto compara sem diferenciar maiúsculas e já decodificado (percent-encoding); uma barra final é ignorada; **a porta é ignorada**; o host com um ponto final (`api.example.`) conta como o mesmo host e então é recusado pela lista de hosts do cliente. A instalação é **recusada** se `hosts` não estiver contido nos hosts permitidos do cliente; uma rota com o cliente não inicializado, num host fora da lista, ou com URI não canônica **não é enviada** (erro tipado). A CLI confere, só lendo o DEX do módulo `base`, que uma `class_def` **define** `Lbr/com/ebees/sentomaru/sdk/transport/SentomaruRoutes;`, `Lbr/com/ebees/sentomaru/sdk/transport/SentomaruUrlConnection;` (S2) ou o plugin `Lbr/com/ebees/sentomaru/sentomaru_flutter/SentomaruFlutterPlugin;` (nomes preservados pelas regras R8 do SDK e do plugin, conferidas num build R8 real no CI); sem nenhum → `app-incompatible`. Isso prova que o **SDK ou o plugin está linkado**, não que a tabela está em uso (as regras do SDK mantêm `SentomaruRoutes` em qualquer app com o SDK; o registrador gerado do Flutter sempre referencia o plugin). `SentomaruUrlConnection` só tem o nome preservado (`-keepnames`): num app minificado ela só existe se o app a chama; sem R8 existe em todo app com o SDK. Relatório: `status: checked`, `changes: []`, evidência `transport` (lista separada por vírgula, nesta ordem, dos valores encontrados: `android-sdk`, `android-sdk-urlconnection` (acréscimo da S2, CLI 0.4.0), `flutter-plugin`) e `check: dex-class-defined`, com o aviso `network-signing-install-line` | `runtime-injection` (ausente → `control-prerequisite`) |
+| `network-signing` | G-03c (onda 1) | instrument / 10 | **Nada** (decisão do fornecedor, 16/10/2026: sem reescrita de DEX). A assinatura RFC 9421 é o transporte do SDK que o app liga **numa linha**, com os `hosts` e `routes` do perfil: Android `OkHttpClient.Builder().addSentomaru(client, SentomaruRoutes.of(hosts, routes))`, Flutter `dio.addSentomaru(client, routes: SentomaruRoutes.fromProfileSection(secao))`; Android com `HttpURLConnection` (S2, CLI 0.4.0): a tabela montada uma vez e cada chamada por `SentomaruUrlConnection.send(client, routes, método, url, corpo, cabeçalhos)`. Requisição sem operação declarada cujo host e caminho casam com uma rota é assinada como essa operação; operação declarada (cabeçalho ou etiqueta) prevalece. **Casamento:** as rotas são tentadas **na ordem do perfil e a primeira que casa vence** (rota literal antes de uma rota com `*` que também a cobriria); `*` casa exatamente um segmento não vazio; o resto compara sem diferenciar maiúsculas e já decodificado (percent-encoding); uma barra final é ignorada; **a porta é ignorada**; o host com um ponto final (`api.example.`) conta como o mesmo host e então é recusado pela lista de hosts do cliente. A instalação é **recusada** se `hosts` não estiver contido nos hosts permitidos do cliente; uma rota com o cliente não inicializado, num host fora da lista, ou com URI não canônica **não é enviada** (erro tipado). A CLI confere, só lendo o DEX do módulo `base`, que uma `class_def` **define** `Lbr/com/ebees/sentomaru/sdk/transport/SentomaruRoutes;`, `Lbr/com/ebees/sentomaru/sdk/transport/SentomaruUrlConnection;` (S2) ou o plugin `Lbr/com/ebees/sentomaru/sentomaru_flutter/SentomaruFlutterPlugin;` (nomes preservados pelas regras R8 do SDK e do plugin, conferidas num build R8 real no CI); sem nenhum → `app-incompatible`. Isso prova que o **SDK ou o plugin está linkado**, não que a tabela está em uso (as regras do SDK mantêm `SentomaruRoutes` em qualquer app com o SDK; o registrador gerado do Flutter sempre referencia o plugin). `SentomaruUrlConnection` só tem o nome preservado (`-keepnames`): num app minificado ela só existe se o app a chama; sem R8 existe em todo app com o SDK. Relatório: `status: checked`, `changes: []`, evidência `transport` (lista separada por vírgula, nesta ordem, dos valores encontrados: `android-sdk`, `android-sdk-urlconnection` (acréscimo da S2, CLI 0.4.0), `flutter-plugin`) e `check: dex-class-defined`, com o aviso `network-signing-install-line` | `runtime-injection` (ausente → `control-prerequisite`) |
 | `build-obfuscation` | D-08 (onda 2; seção do perfil fechada na D-08a) | harden / 10 | **Nada**: só lê o artefato e relata se o R8 renomeou o SDK, se nomes do SDK ficaram, se o Dart foi compilado com `--obfuscate` e se o app é `debuggable` (`status: checked`, ver [`build-obfuscation`](#build-obfuscation-d-08)). No código da CLI (`Controls.all`) desde a D-08f; está na release `cli-v0.5.0` (publicada em 30/10/2026) (de D-08d a D-08e, só com `SENTOMARU_LAB=1`) | — |
 | `integrity-manifest` | D-12 (onda 2) | harden / 90 | manifesto de integridade embutido (sempre por último no endurecimento) | — |
 | `asset-encryption` | D-14 (onda 2; seção do perfil fechada na D-14a) | harden / 20 | arquivos de `assets/` do módulo `base` marcados no perfil (e um arquivo JSON de strings) trocados por arquivos selados com AES-256-GCM em `assets/sentomaru/sealed/`; os originais saem do pacote; o app lê pelo SDK ou pelo plugin, por chamada explícita (ver [`asset-encryption`](#asset-encryption-d-14)). No código da CLI (`Controls.all`) desde a D-14e, depois da prova em aparelho, adversarial e no emulador (D-14d); está na release `cli-v0.5.0` (publicada em 30/10/2026) (da D-14c à D-14d, só com `SENTOMARU_LAB=1`) | o leitor do SDK ou do plugin linkado (ausente → `app-incompatible`) |
@@ -395,7 +395,7 @@ o relatório são os de hoje, byte a byte: o artefato é comparado por teste com
 - Sem kill switch remoto e sem modo "só reportar": os freios são o pino de backup, a expiração e a atualização do app.
 - Fixar um host atrás de uma CDN que gere a chave (Cloudflare com Universal SSL, CloudFront/ACM) quebra o app quando a
   chave muda; a CLI não vê a borda.
-- O `pinning` do perfil do Shield (D-01, `contracts/shield/registry-v1.md`) continua declarativo: a geração vem do
+- O `pinning` do perfil do Shield (D-01, the Shield registry contract) continua declarativo: a geração vem do
   perfil `protect`.
 
 **Mudança de comportamento na D-07a (registrada):** antes, `network-pinning` era uma seção de controle desconhecido
@@ -447,9 +447,9 @@ nos outros controles):
 
 | Evidência | Como | Valores |
 |---|---|---|
-| `sdkProbeRenamed` | com o SDK no app, a classe de sonda `Lbr/com/ebees/sentomaru/sdk/AndroidInstallationStore;` **não** está definida com esse nome no DEX do `base` (o critério de `verification/devsecops/check_r8_names.py`) | `true`, `false`, `unknown` (app sem o SDK, ou algum DEX do `base` pulado: acima do limite ou malformado) |
+| `sdkProbeRenamed` | com o SDK no app, a classe de sonda `Lbr/com/ebees/sentomaru/sdk/AndroidInstallationStore;` **não** está definida com esse nome no DEX do `base` (o critério de the vendor's check r8 names check) | `true`, `false`, `unknown` (app sem o SDK, ou algum DEX do `base` pulado: acima do limite ou malformado) |
 | `sdkNamesKept` | todas as classes de um conjunto fixo estão definidas com o nome de origem: `SentomaruRoutes` (mantida pelas regras do SDK) e, quando a seção `asset-encryption` está no perfil, o marcador do leitor (`SentomaruSealed` ou `SentomaruFlutterSealed`, ver [`asset-encryption`](#asset-encryption-d-14)). `SentomaruUrlConnection` não entra: some num app minificado que não a chama | `true`, `false`, `unknown` (app sem o SDK, ou algum DEX do `base` pulado) |
-| `dartObfuscated` | app Flutter (`base/lib/<abi>/libapp.so` no AAB, `lib/<abi>/libapp.so` no APK): leitura dos bytes de cada `libapp.so`. Todo arquivo precisa ser um snapshot Dart legível: ELF little-endian inteiro (a tabela de seções termina dentro do arquivo) com o símbolo `_kDartIsolateSnapshotData`, que existe com e sem `--obfuscate`; senão `unknown`. `false` quando **todo** `libapp.so` tem a lista fixa de identificadores Dart do plugin (`SentomaruClient`, `SentomaruConfig`, `SignalObservation`) ou **todo** tem o marcador do framework `WidgetsFlutterBinding` (todo app Flutter o alcança pelo `runApp`; o `--obfuscate` o renomeia). `true` só quando **nenhum** tem nenhum desses nomes **e** o DEX define a classe do plugin. Lista, símbolo e marcador validados com builds reais com e sem a opção (D-08b, D-08d) e iguais aos de `verification/devsecops/check_dart_obfuscation.py` | `true`, `false`, `unknown` (sem `libapp.so`: não é Flutter, ou é build de debug; arquivo que não é snapshot legível: vazio, truncado, não ELF, sem o símbolo; ou a heurística não decide: lista parcial sem o marcador, ABIs que discordam, app sem o plugin, mais de 16 `libapp.so`, um acima de 512 MiB ou mais de 1 GiB lidos no total, entrada que não descompacta) |
+| `dartObfuscated` | app Flutter (`base/lib/<abi>/libapp.so` no AAB, `lib/<abi>/libapp.so` no APK): leitura dos bytes de cada `libapp.so`. Todo arquivo precisa ser um snapshot Dart legível: ELF little-endian inteiro (a tabela de seções termina dentro do arquivo) com o símbolo `_kDartIsolateSnapshotData`, que existe com e sem `--obfuscate`; senão `unknown`. `false` quando **todo** `libapp.so` tem a lista fixa de identificadores Dart do plugin (`SentomaruClient`, `SentomaruConfig`, `SignalObservation`) ou **todo** tem o marcador do framework `WidgetsFlutterBinding` (todo app Flutter o alcança pelo `runApp`; o `--obfuscate` o renomeia). `true` só quando **nenhum** tem nenhum desses nomes **e** o DEX define a classe do plugin. Lista, símbolo e marcador validados com builds reais com e sem a opção (D-08b, D-08d) e iguais aos de the vendor's check dart obfuscation check | `true`, `false`, `unknown` (sem `libapp.so`: não é Flutter, ou é build de debug; arquivo que não é snapshot legível: vazio, truncado, não ELF, sem o símbolo; ou a heurística não decide: lista parcial sem o marcador, ABIs que discordam, app sem o plugin, mais de 16 `libapp.so`, um acima de 512 MiB ou mais de 1 GiB lidos no total, entrada que não descompacta) |
 | `debuggable` | `android:debuggable` do `<application>` no manifesto do `base`: ausente ou `false` literal (booleano, ou inteiro 0) é `false`; `true` literal, inteiro diferente de 0, ou um valor que não é literal (referência a recurso), conta como `true` (só aviso); com o atributo repetido ou dois `<application>`, `true` se qualquer ocorrência for | `true`, `false` |
 
 "App sem o SDK" é o DEX do `base` sem nenhuma classe sob `Lbr/com/ebees/sentomaru/sdk/` nem a classe do plugin. Se a
@@ -498,7 +498,7 @@ decisão de arquitetura em [ADR 0003](../../docs/devsecops/adr-0003-asset-encryp
 [`examples/protect-profile-asset-encryption-v1.example.json`](examples/protect-profile-asset-encryption-v1.example.json)
 (junta um caminho de app nativo e um de app Flutter só para mostrar as duas formas, como a spec; um app real tem uma).
 Vetores compartilhados pela CLI, pelo SDK e pelo plugin: [`sealed-v1-vectors.json`](sealed-v1-vectors.json), gerados por
-`verification/devsecops/gen_sealed_vectors.py` e conferidos por `verification/devsecops/test_sealed_vectors.py` (com um
+the vendor's gen sealed vectors check e conferidos por the vendor's reference reader (com um
 leitor de referência independente).
 
 **É ofuscação de dados, não sigilo** (D-14x1). A chave de cada arquivo é derivada, no aparelho e sem rede, de valores que
@@ -507,13 +507,13 @@ arquivos. O controle só tira os arquivos marcados do pacote em claro.
 
 **Estado da implementação (D-14b e D-14c, 27/10/2026):** o leitor (D-14b): o módulo `sdk/android/sealed` e o plugin
 Flutter 0.17.0 (não publicado) leem o formato selado v1, conferidos contra todos os casos de `sealed-v1-vectors.json` e
-os da RFC 5869 em teste de JVM; os marcadores sobrevivem a um build R8 real (`verification/devsecops/check_r8_names.py`).
+os da RFC 5869 em teste de JVM; os marcadores sobrevivem a um build R8 real (the vendor's check r8 names check).
 O controle na CLI (D-14c, liberado na D-14e, 30/10/2026): está no código da CLI (`Controls.all`); entra na release
 `cli-v0.5.0`, **publicada em 30/10/2026** ([distribuição](cli-distribution-v1.md)). Nesse código ele roda no `--dry-run` (com ou sem
 `SENTOMARU_LAB`), na execução real (sem o gate: desde a D-16-lab-gate a execução real registrada recusa
 `SENTOMARU_LAB=1` com saída 2, `usage`, `lab-gate-registered`) e na execução de laboratório (`--lab-unregistered`), e
 `controls --json` o lista. Da D-14c à D-14d ele ficou só atrás do gate de laboratório (`SENTOMARU_LAB=1`, não
-contratual), até a prova em aparelho (SM-A055M), o teste adversarial, o revisor independente e a parte do emulador da
+contratual), até a prova em aparelho (aparelho de referência), o teste adversarial, o revisor independente e a parte do emulador da
 D-14d (relatório de aparelho e emulador com `status`
 `device-and-emulator-done`, guardado pela operação) e a revisão R. A release `cli-v0.4.0`, a anterior, ainda válida: com ela o perfil com a
 seção sai 4 (`control-not-available`). Diferente da `network-pinning`, o código do controle **lê** o gate, só para o
@@ -536,8 +536,8 @@ antes dela:
   `control-version-unsupported`), conferido contra o app (saída 5) e, válido, aplicado num AAB (`applied`) ou planejado
   no `--dry-run` (`planned`, saída 0).
 - Sem a seção `asset-encryption`, o artefato gerado é o de antes, byte a byte; no relatório só muda `cli.build`.
-- O relatório de proteção (`contracts/shield/protection-report-v1.md`) tem a linha do controle desde a D-16f (catálogo
-  2, decisão do dono em 30/10/2026): numa corrida registrada da 0.5.0, o gerador confere a marca v1 e os tamanhos das
+- O relatório de proteção (the Sentomaru protection report contract) tem a linha do controle desde a D-16f (catálogo
+  2, decisão do fornecedor em 30/10/2026): numa corrida registrada da 0.5.0, o gerador confere a marca v1 e os tamanhos das
   entradas seladas no AAB de saída (e os arquivos marcados no de entrada, quando publicado), não o conteúdo, e
   acrescenta a `notVerified` as linhas `asset-key-in-app` ("ela não protege segredo: a chave vai no próprio app") e
   `sealed-content` (o conteúdo cifrado não é conferido).
@@ -573,7 +573,7 @@ saída (o AAB e os APKs que o `bundletool build-apks` gera dele) com o próprio 
 - **Limites** (D-14x5, com a emenda da D-14e): 64 arquivos contando o de `strings`; até **1 MiB por arquivo**
   (1 048 576 bytes) e 32 MiB na soma (33 554 432 bytes), medidos sobre o arquivo em claro. Arquivo maior é recusado na
   hora do build (fase de compatibilidade, também no `--dry-run`), com `asset-too-large`; não há leitor em fluxo. Motivo
-  (decisão do dono, conservadora, D-14e): o leitor guarda o arquivo inteiro na memória e o pico medido na D-14d ficou
+  (decisão do fornecedor, conservadora, D-14e): o leitor guarda o arquivo inteiro na memória e o pico medido na D-14d ficou
   acima de 3× o tamanho em claro (no emulador, a medida precisa da leitura de 4 MiB deu de 3,0× a 4,0×; para 1 MiB é
   extrapolação, não medida; campo `cost.livePeakPreciseNote` do relatório de aparelho). O teto do **formato** continua 4 MiB (os leitores recusam tamanho declarado acima
   disso; `readerLimits` nos vetores); só com o gate de laboratório (`SENTOMARU_LAB=1`, não contratual) a CLI aceita até
@@ -869,7 +869,7 @@ vocabulário fechado por controle (lista em `controls --json`). O relatório nun
 conteúdo do app além dos nomes e digests listados.
 
 **Proveniência da corrida (D-16d):** a CLI não assina o relatório nem monta proveniência; depois de uma corrida
-registrada, o CI do cliente monta o statement `protect-run/v1` com `tools/devsecops/protect_provenance.py` e o assina
+registrada, o CI do cliente monta o statement `protect-run/v1` com the vendor's protect provenance tool e o assina
 com a chave dele ([protect-run-provenance-v1.md](protect-run-provenance-v1.md)); o relatório de proteção da corrida é o
 `kind: protect-run` de [protection-report-v1.md](../shield/protection-report-v1.md). Nada muda neste contrato.
 
@@ -896,7 +896,7 @@ consegue detectá-los sem efeito. Mensagem em `stderr` e no relatório: `{"code"
 
 Cada execução real tem um registro idempotente pelo `runId`: **aberto** junto com a conferência do direito (antes de
 ler a entrada) e **fechado** com o resultado. Sem direito (`entitlement-denied`) não há corrida. `--dry-run` não é
-medido. Controle novo não cria unidade de cobrança sem decisão do dono (D-F2).
+medido. Controle novo não cria unidade de cobrança sem decisão do fornecedor (D-F2).
 
 **Como está implementado (G-03e1, migração 0034):** o registro é a linha de `platform.protect_run`, e a medição deriva
 dela pelo rollup (B-05): a métrica `devsecops.pipelines` conta as corridas `protected` pelo instante do fechamento.
@@ -910,9 +910,9 @@ corridas da CLI.
 ## Gate (G-03, onda 1)
 
 Apps de exemplo protegidos com o runtime injetado **sem alterar o código-fonte** e com a assinatura de rede ligada
-**por uma linha** (decisão do dono, 16/10/2026: a G-03 deixa de prometer "sem alterar o código" para a rede): Kotlin com
+**por uma linha** (decisão do fornecedor, 16/10/2026: a G-03 deixa de prometer "sem alterar o código" para a rede): Kotlin com
 OkHttp (`addSentomaru(client, routes)`) e um app Flutter com Dio (`dio.addSentomaru(client, routes: ...)`). **A
 evidência em aparelho é só Android/OkHttp; o Dio tem só testes unitários e de transporte real em loopback (sem
-aparelho).** Evidência da rede em aparelho (17/10/2026, SM-A055M, Android 15): relatório de aparelho da operação do Sentomaru: rota assinada pela tabela aceita pelo servidor, a mesma rota sem a linha recusada
+aparelho).** Evidência da rede em aparelho (17/10/2026, aparelho de referência, Android 15): relatório de aparelho da operação do Sentomaru: rota assinada pela tabela aceita pelo servidor, a mesma rota sem a linha recusada
 pelo servidor (401) e rota fora da lista de hosts não enviada; o app Flutter em aparelho continua pendente. Instalados em aparelho com a saída assinada, inscritos e
 com requisições aceitas pelo servidor; suíte de UI do exemplo igual antes e depois; tamanho e arranque medidos.

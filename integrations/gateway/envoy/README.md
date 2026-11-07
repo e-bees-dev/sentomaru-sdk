@@ -1,7 +1,7 @@
 # Envoy na frente do verificador (exemplo)
 
-Exemplo de deploy do Envoy com o `Sentomaru.Gateway.Verifier` (contrato `contracts/api/gateway-verifier-v1.md`, seções
-5 e 10). É o mesmo arquivo que o gate `verification/run_gateway.py` e o teste de vetores
+Exemplo de deploy do Envoy com o `Sentomaru.Gateway.Verifier` (contrato the Sentomaru gateway verifier contract, seções
+5 e 10). É o mesmo arquivo que o gate the vendor's run gateway check e o teste de vetores
 (`GatewayParityTests.Envoy.cs`) sobem, só com os marcadores trocados.
 
 - `envoy.yaml`: configuração estática. Marcadores `__LISTEN_ADDRESS__`, `__LISTEN_PORT__`, `__VERIFIER_ADDRESS__`,

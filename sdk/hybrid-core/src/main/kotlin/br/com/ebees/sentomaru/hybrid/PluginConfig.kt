@@ -50,7 +50,7 @@ object PluginConfig {
     }
 
     /**
-     * D-12e: the optional reattestation routes of the consumer (`contracts/api/reattestation-v1.md`). Both absent = no
+     * D-12e: the optional reattestation routes of the consumer (the Sentomaru re-attestation API contract). Both absent = no
      * reattestation (null, the pre-0.13 behaviour); one without the other, a non-positive or non-integer interval, or a
      * URL [SentomaruReattestation] refuses (not https, host outside the allowlist) = [Invalid]. Absent interval = the
      * SDK default (24 h).

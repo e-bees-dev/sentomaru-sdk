@@ -966,7 +966,7 @@ padrão); o backend do consumidor com as duas rotas de reatestação (`reattest_
 
 Numa instalação nova ou reinscrita ainda não há reatestação, então a primeira operação coberta recebe o desafio. Nos
 apps que usam a condição, chame `reattestIfDue` logo depois da inscrição: custa uma chave atestada (56 a 110 ms no
-SM-A055M) e evita o desafio na primeira operação. Se o operador aumentar o intervalo do escopo depois de publicar a
+aparelho de referência) e evita o desafio na primeira operação. Se o operador aumentar o intervalo do escopo depois de publicar a
 política, a condição continua casando e o app recebe 429 até o intervalo vencer; o runbook pede conferir N antes de
 mudar o intervalo. O caso `reattest-challenge` do `raspLab` faz esse roteiro no laboratório.
 

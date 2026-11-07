@@ -19,7 +19,7 @@ application {
 
 // `sentomaru verify receipt|audit-export` runs the Trust module's third-party verifiers (Python standard library + openssl).
 // The distribution carries the two scripts, unchanged, under lib/verify/; Verify.SCRIPTS lists the same two names
-// (verification/devsecops/test_cli_verify_bundle.py keeps both lists equal).
+// (the vendor's test cli verify bundle check keeps both lists equal).
 distributions {
     main {
         contents {

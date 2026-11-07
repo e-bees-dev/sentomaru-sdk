@@ -38,7 +38,7 @@ class EmulatorIndicatedDetector(
         /** The Build fields the reviewed list reads; a missing one means the check did not run. */
         val BUILD_KEYS = listOf("FINGERPRINT", "MODEL", "MANUFACTURER", "HARDWARE", "PRODUCT", "DEVICE", "BOARD")
 
-        // Only the accelerometer: entry-level devices (the SM-A055M among them) can lack gyroscope or magnetometer.
+        // Only the accelerometer: entry-level devices (the reference device among them) can lack gyroscope or magnetometer.
         const val BASIC_SENSOR = Sensor.TYPE_ACCELEROMETER
     }
 

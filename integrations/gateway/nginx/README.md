@@ -1,8 +1,8 @@
 # OpenResty (nginx) na frente do verificador (exemplo)
 
-Exemplo de deploy do OpenResty com o `Sentomaru.Gateway.Verifier` (contrato `contracts/api/gateway-verifier-v1.md`,
+Exemplo de deploy do OpenResty com o `Sentomaru.Gateway.Verifier` (contrato the Sentomaru gateway verifier contract,
 seções 5 e 11), nos modos de chamador `jwt` e `trusted-header` (marcador `__CALLER_MODE__`). Não é o módulo de Nginx do plano (esse não existe) nem o exemplo de produção:
-é o que o smoke `verification/gateway/run_nginx_smoke.py` sobe.
+é o que o smoke the vendor's run nginx smoke check sobe.
 
 - `nginx.conf`: configuração estática. Marcadores `__LISTEN_ADDRESS__`, `__LISTEN_PORT__`, `__VERIFIER_ADDRESS__`,
   `__VERIFIER_PORT__`, `__UPSTREAM_ADDRESS__`, `__UPSTREAM_PORT__`, `__AUTHN_ADDRESS__`, `__AUTHN_PORT__` (serviço de
@@ -46,8 +46,8 @@ status não-2xx vira 500. O contrato (seção 2) exige o status e o `{"code": ..
   (subpedido interno `GET`, só com o `authorization`) que responde 200 com `Sentomaru-Caller-Subject` e
   `Sentomaru-Caller-Tenant`, ou 4xx com corpo (devolvido como veio); falha dele é 503. O `authorization` não vai ao
   verificador nesse modo. Provado pelos vetores com um serviço de teste que confere o ES256; o serviço real é do deploy.
-- **TLS, HTTP/2, HTTP/3:** o ouvinte do exemplo é HTTP/1.1 em texto claro. Com `ssl` e `http2 on` no `listen` (certificado autoassinado de teste), os requisitos da seção 5 valem também sobre HTTP/2 nos dois modos de chamador: `verification/gateway/run_nginx_tls_smoke.py` (8 testes, 6/11/2026). **Não provado:** cadeia de certificado real, ALPN com cliente de produção, HTTP/3, carga; o exemplo continua sem TLS (é do deploy).
-- **API real:** o smoke usa dublês; os 126 vetores usam o verificador real com a API em memória; `verification/run_gateway_nginx.py` sobe a API real, o PostgreSQL, o verificador real e este OpenResty (modo `trusted-header` com um serviço de autenticação de laboratório) e roda 27 testes de `nginx_gateway_e2e.py` (os 28 de `gateway_e2e.py` menos 5 que são do Envoy, mais 4 sobre TLS + HTTP/2 com um segundo OpenResty `ssl`/`http2 on`; 3 reescritos para o comportamento do nginx: caminho não normalizado recusado pelo verificador com 403, I1 como configuração, repetido com `content-type` explícito). Resultado de 6/11/2026: 27 de 27, e o primeiro que rodou achou o defeito abaixo.
+- **TLS, HTTP/2, HTTP/3:** o ouvinte do exemplo é HTTP/1.1 em texto claro. Com `ssl` e `http2 on` no `listen` (certificado autoassinado de teste), os requisitos da seção 5 valem também sobre HTTP/2 nos dois modos de chamador: the vendor's run nginx tls smoke check (8 testes, 6/11/2026). **Não provado:** cadeia de certificado real, ALPN com cliente de produção, HTTP/3, carga; o exemplo continua sem TLS (é do deploy).
+- **API real:** o smoke usa dublês; os 126 vetores usam o verificador real com a API em memória; the vendor's run gateway nginx check sobe a API real, o PostgreSQL, o verificador real e este OpenResty (modo `trusted-header` com um serviço de autenticação de laboratório) e roda 27 testes de `nginx_gateway_e2e.py` (os 28 de `gateway_e2e.py` menos 5 que são do Envoy, mais 4 sobre TLS + HTTP/2 com um segundo OpenResty `ssl`/`http2 on`; 3 reescritos para o comportamento do nginx: caminho não normalizado recusado pelo verificador com 403, I1 como configuração, repetido com `content-type` explícito). Resultado de 6/11/2026: 27 de 27, e o primeiro que rodou achou o defeito abaixo.
 - **Repetido com caixa diferente (corrigido):** a checagem de I7 usava `get_headers(0, true)` (nomes crus), em que `Signature` e `signature` são duas chaves e não um repetido: o pedido passava ao verificador com o cabeçalho duas vezes. Agora usa nomes em minúsculas (`get_headers(0)`); `run_nginx_smoke.py` tem o teste `test_repeated_profile_headers_with_different_case_are_refused` e o E2E o cobre.
 - **Cabeçalhos repetidos:** o nginx recusa dois `Content-Length` com 400 sem corpo JSON antes do Lua; o `Transfer-Encoding`
   com `Content-Length` e outras ambiguidades de enquadramento são do nginx, não do exemplo.
@@ -62,7 +62,7 @@ python3 verification/gateway/run_nginx_smoke.py
 ```
 
 Precisa de Docker em execução (Colima) e da imagem de `openresty-image`. Monta o `nginx.conf` num diretório sob `$HOME`
-(o Colima não enxerga `/var/folders`). O teste estático `verification/gateway/test_nginx_example.py` não precisa de Docker.
+(o Colima não enxerga `/var/folders`). O teste estático the vendor's test nginx example check não precisa de Docker.
 
 ```bash
 python3 verification/gateway/run_nginx_tls_smoke.py

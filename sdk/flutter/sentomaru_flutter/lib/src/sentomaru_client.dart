@@ -184,7 +184,7 @@ class SentomaruClient {
     return _platform.reattestationDue();
   }
 
-  /// D-12e (0.13.0): reattestation under a single-use server challenge (`contracts/api/reattestation-v1.md`), opt-in
+  /// D-12e (0.13.0): reattestation under a single-use server challenge (the Sentomaru re-attestation API contract), opt-in
   /// with [SentomaruConfig.reattestation]. When due, asks the consumer's route for a challenge, generates a NEW
   /// attested key in the Keystore for it (deleted right after, it never signs) and sends its chain, both steps signed
   /// with the current installation key; otherwise [ReattestationNotNow] `notDue` without sending anything. Runs on a

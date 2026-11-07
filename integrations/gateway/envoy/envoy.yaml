@@ -1,6 +1,6 @@
-# D-17d: exemplo de Envoy na frente do Sentomaru.Gateway.Verifier (contracts/api/gateway-verifier-v1.md, seções 5 e 10).
+# D-17d: exemplo de Envoy na frente do Sentomaru.Gateway.Verifier (the Sentomaru gateway verifier contract, seções 5 e 10).
 # Imagem fixada por digest em integrations/gateway/envoy/envoy-image. Os marcadores __NOME__ são trocados no deploy (e
-# pelo gate verification/run_gateway.py e pelo teste de vetores): endereço e porta do ouvinte, do verificador e do
+# pelo gate the vendor's run gateway check e pelo teste de vetores): endereço e porta do ouvinte, do verificador e do
 # upstream, e o emissor, a audiência e as chaves públicas (JWKS) do token de usuário que o gateway autentica.
 # Tudo o que está aqui é requisito normativo da seção 5 do contrato, salvo o filtro jwt_authn, que é um exemplo de
 # autenticação do gateway para o modo trusted-header (troque pela autenticação que o gateway já faz). Nenhum segredo:

@@ -4,7 +4,7 @@ import Foundation
 import XCTest
 
 /// SDK-VEC-1..4 on the Swift side, the twin of the Kotlin `SharedVectorsTest`. Inputs and expectations come from
-/// verification/sdk/gen_vectors.py (independent Python implementation, http-message-signatures). ECDSA is randomized:
+/// the vendor's vector generator (independent Python implementation, http-message-signatures). ECDSA is randomized:
 /// bases, digests, Signature-Input and envelopes are compared byte for byte; signatures are verified, never compared.
 final class SharedVectorsTests: XCTestCase {
     /// Exact counts of sdk-vectors-v1.json (81 = 43 positive + 38 negative). A new vector changes these on purpose:

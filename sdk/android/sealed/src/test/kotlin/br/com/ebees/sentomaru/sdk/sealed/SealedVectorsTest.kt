@@ -16,7 +16,7 @@ import javax.crypto.spec.SecretKeySpec
 
 /**
  * D-14b: the SDK reader against every case of the shared D-14a vectors, the same way the reference reader of
- * `verification/devsecops/test_sealed_vectors.py` does: each positive case opens to its plaintext, each negative case
+ * the vendor's reference reader does: each positive case opens to its plaintext, each negative case
  * fails with the listed code, and the two `probe` rules (sizes before AEAD, inflation capped at declared + 1) are
  * observed through the reader's seams. HKDF is checked against RFC 5869 (copied from the RFC, and in the vectors).
  */

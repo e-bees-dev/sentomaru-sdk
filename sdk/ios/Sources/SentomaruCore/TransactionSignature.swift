@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-/// D-25 (contracts/api/transaction-keys-v1.md section 2): the bytes the transaction key signs and the header value, the
+/// D-25 (the Sentomaru transaction-keys API contract section 2): the bytes the transaction key signs and the header value, the
 /// Swift twin of the Android `TransactionSigning`. Pure: no key, no prompt.
 ///
 /// Signed bytes (UTF-8, LF separated, no final LF): `sentomaru-tx-v1`, the nonce (base64url, no padding), the value of

@@ -16,7 +16,7 @@ plugins {
 allprojects {
     group = "br.com.ebees.sentomaru"
     // G-04: the SDK version has ONE source, gradle.properties (sentomaru.sdkVersion); the Flutter plugin's Gradle file and
-    // the Maven/plugin packaging (tools/devsecops/package_sdk.py) are checked against it by verification/devsecops.
+    // the Maven/plugin packaging (the vendor's package sdk tool) are checked against it by the vendor's devsecops check.
     version = property("sentomaru.sdkVersion") as String
 
     dependencyLocking {
@@ -31,7 +31,7 @@ subprojects {
     }
 }
 
-// G-04 (docs/devsecops/adr-0004-sdk-registry.md): OPT-IN remote Maven repository. Inert by default: without
+// G-04 (the vendor's adr 0004 sdk registry notes): OPT-IN remote Maven repository. Inert by default: without
 // -Psentomaru.publish.url (or env SENTOMARU_PUBLISH_URL) no repository is added and the task graph is exactly the
 // one-repo (localRepo) graph that existed before. Credentials only from the environment, never from a file or a default:
 // SENTOMARU_PUBLISH_USER / SENTOMARU_PUBLISH_TOKEN. Accepts https:// (a registry) or file: (a local layout for tests).

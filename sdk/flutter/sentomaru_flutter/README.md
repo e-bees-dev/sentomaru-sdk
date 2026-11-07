@@ -98,7 +98,7 @@ que traz o `<queries>` dos gerenciadores de root), então o manifesto mesclado d
 
 ```kotlin
 // android/app/build.gradle.kts
-dependencies { implementation("br.com.ebees.sentomaru:signals-rasp:0.2.0-rc.1") }
+dependencies { implementation("br.com.ebees.sentomaru:signals-rasp:0.2.0-rc.2") }
 ```
 
 Sem ele a checagem não roda e `root_artifacts` nunca dá `NOT_DETECTED` (`UNKNOWN` com `partial=root_package`, ou
@@ -113,7 +113,7 @@ checagem iOS para eles). Até 0.18.0 o Dart respondia sem chamar o canal: sem `r
 final snapshot = await client.collectSignalsSnapshot(
     appIntegrity: AppIntegritySignals(expectedSignerDigests: [certificadoSha256]));
 
-// Reatestação: rotas públicas do consumidor que repassam para a API (contracts/api/reattestation-v1.md).
+// Reatestação: rotas públicas do consumidor que repassam para a API (the Sentomaru re-attestation API contract).
 await client.initialize(SentomaruConfig(/* ... */ reattestation: SentomaruReattestationConfig(
     challengeUrl: 'https://api.example/reattest/challenge', submitUrl: 'https://api.example/reattest')));
 await client.renewSession();
@@ -199,7 +199,7 @@ de migração no `CHANGELOG.md` (sinais assinados mudam a leitura de `NOT_DETECT
 
 `SentomaruConfig(playIntegrityCloudProjectNumber: <número do projeto Google Cloud>)` liga o token consultivo do Play
 Integrity na inscrição (SDK Android). Sem o campo, nada muda. Qualquer falha (sem Google Play, emulador, quota, rede)
-inscreve sem o token. Contrato: `contracts/api/play-integrity-v1.md`.
+inscreve sem o token. Contrato: the Sentomaru Play Integrity API contract.
 
 ## Eventos de sinal e de resposta do servidor por opção (0.14.0)
 
@@ -229,7 +229,7 @@ avaliação. Com `ReattestationNotNow` mostra "tente mais tarde" e não repete; 
 reatesta de novo nesta operação. O plugin não reatesta nem repete sozinho.
 
 
-## Leitura de assets selados (0.17.0; provado no SM-A055M e medido no emulador; controle da CLI a partir da `cli-v0.5.0`)
+## Leitura de assets selados (0.17.0; provado no aparelho de referência e medido no emulador; controle da CLI a partir da `cli-v0.5.0`)
 
 Para os arquivos que o controle `asset-encryption` da CLI sela (`contracts/devsecops/cli-v1.md`), o app troca
 `rootBundle.load(chave)` por `SentomaruSealed.load(chave)` (`Future<Uint8List>`, mesma chave do `pubspec.yaml`) e lê o
@@ -246,7 +246,7 @@ final catalogo = await SentomaruSealed.load('assets/dados/catalogo.json');
 
 - **É ofuscação de dados, não sigilo:** quem tem o APK recupera os arquivos; um revisor independente
   os recuperou em 4 min 37 s só com o APK e o esquema público. Segredo de servidor não vai no app, selado ou não.
-- **Custo medido no SM-A055M:** a primeira leitura de 1 MiB pelo canal teve p50 de 106 ms em 30 arranques frios,
+- **Custo medido no aparelho de referência:** a primeira leitura de 1 MiB pelo canal teve p50 de 106 ms em 30 arranques frios,
   acima do limite declarado de 50 ms, em dois modos: ~40 ms na minoria (12 de 30) e ~115 ms na maioria (18 de 30). Que
   o modo lento venha da disputa com a subida do engine é hipótese, não testada no aparelho. No emulador, ler
   depois do primeiro quadro **não** ficou mais barato: o p50 subiu de 202 a 248 ms em todos os tamanhos, por causa não
@@ -259,7 +259,7 @@ final catalogo = await SentomaruSealed.load('assets/dados/catalogo.json');
 - O marcador `SentomaruFlutterSealed` (`-keepnames` nas regras do plugin) é o que a CLI procura no DEX; prova só que o
   leitor está linkado.
 
-## Pinning da chave do servidor no Dart (0.16.0, C-03a; provado no emulador e no SM-A055M na C-03b)
+## Pinning da chave do servidor no Dart (0.16.0, C-03a; provado no emulador e no aparelho de referência na C-03b)
 
 O `HttpClient` do `dart:io` não lê o `network_security_config` que a CLI gera para o lado nativo. A parte Dart
 é uma linha a mais, na mesma instância de `Dio` que fala com o host fixado, **antes** do `addSentomaru` e da primeira
@@ -284,7 +284,7 @@ pins.events.listen((e) => log('${e.reason.wireName} ${e.host}')); // opcional, l
   um `DioException`. Como o `HttpClient` só escreve depois disso, nenhum byte da requisição (linha, cabeçalhos,
   assinatura RFC 9421, corpo) sai na recusa; o `validateCertificate` do Dio não é usado porque roda depois do envio
   (há um teste de controle mostrando isso). Um ensaio provou no emulador
-  (proxy de interceptação: handshake completo e zero bytes de aplicação) e no SM-A055M (chave não fixada: nenhuma
+  (proxy de interceptação: handshake completo e zero bytes de aplicação) e no aparelho de referência (chave não fixada: nenhuma
   requisição completa no servidor; zero bytes não é medido no aparelho); a falha aberta depois da expiração, só no
   emulador. A ficha afirma: "no Flutter ela vale para o `Dio` em que a linha do plugin foi instalada".
 - **Falha fechada:** host fixado com proxy configurado no `HttpClient` (o TLS seria feito por cima do túnel, sem

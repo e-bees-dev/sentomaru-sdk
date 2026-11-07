@@ -199,7 +199,7 @@ class SignalEventsTest {
         assertEquals(SignalsCatalog.RASP_CAPABILITY_IDS.toSet(), recorder.events.map { it.capabilityId }.toSet())
         val text = recorder.events.joinToString()
         for (leak in SignalsCatalog.ROOT_MANAGER_PACKAGES + listOf("/system/xbin/su", "/data/adb/magisk", "debug_ramdisk", "a1b2c3d4e5f6",
-                "com.example.thirdparty.store", "com.android.vending", "samsung", "SM-A055M", "2026-10-23")) {
+                "com.example.thirdparty.store", "com.android.vending", "samsung", "SM-T000Z", "2026-10-23")) {
             assertFalse(leak, leak in text)
         }
         assertEquals(listOf("su_path", "root_package", "mountinfo"),
