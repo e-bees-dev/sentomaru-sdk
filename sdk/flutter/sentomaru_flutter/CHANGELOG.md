@@ -1,3 +1,9 @@
+## 0.20.0-rc.3 (candidato)
+
+Mesmo código da `0.20.0-rc.2`, com o SDK Android `0.2.0-rc.3`. O que muda é o que acompanha o release: o `verify_sdk.py` publicado exige
+`--expect-repository` e não nomeia mais o repositório do fabricante, o verificador do conjunto novo tem linha própria na tabela de pinos,
+e a varredura de nomes cobre as formas do endereço do repositório privado.
+
 ## 0.20.0-rc.2 (candidato)
 
 Mesmo código da `0.20.0-rc.1`, com o SDK Android `0.2.0-rc.2`. O que muda é o que acompanha o pacote: o SBOM do release lista os pacotes Pub

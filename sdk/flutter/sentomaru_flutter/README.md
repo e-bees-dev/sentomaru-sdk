@@ -98,7 +98,7 @@ que traz o `<queries>` dos gerenciadores de root), então o manifesto mesclado d
 
 ```kotlin
 // android/app/build.gradle.kts
-dependencies { implementation("br.com.ebees.sentomaru:signals-rasp:0.2.0-rc.2") }
+dependencies { implementation("br.com.ebees.sentomaru:signals-rasp:0.2.0-rc.3") }
 ```
 
 Sem ele a checagem não roda e `root_artifacts` nunca dá `NOT_DETECTED` (`UNKNOWN` com `partial=root_package`, ou

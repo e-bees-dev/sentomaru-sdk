@@ -1,6 +1,6 @@
 name: sentomaru_flutter
 description: "Sentomaru Flutter adapter (Android and iOS): native RFC 9421 signing via the Sentomaru SDKs and a Dio interceptor."
-version: 0.20.0-rc.2
+version: 0.20.0-rc.3
 publish_to: none
 
 environment:

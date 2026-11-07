@@ -4,9 +4,8 @@
   verify_sdk.py --dist <dir with sentomaru-sdk-maven-<sdk>.zip, sentomaru_flutter-<plugin>.tar.gz,
                          sentomaru-sdk-sbom-<sdk>.cdx.json, SHA256SUMS, statement.json, signature.sigstore.json> \
       --sdk-version <v> --plugin-version <v> --key <release key .pub> --key-sha256 <pin obtained out of band> \
-      --cosign <cosign> --cosign-sha256 <pin> [--dest <dir>] \
-      [--expect-repository e-bees-dev/Sentomaru --expect-ref refs/heads/main \
-       --expect-workflow-path .github/workflows/sdk-release.yml]
+      --cosign <cosign> --cosign-sha256 <pin> --expect-repository <owner/repository that built the release> [--dest <dir>] \
+      [--expect-ref refs/heads/main --expect-workflow-path .github/workflows/sdk-release.yml]
 
 Same model as verify_cli.py (docs/devsecops/adr-0004-sdk-registry.md): the six files are first copied into a private 0700
 directory and only that copy is checked, hashed and extracted. Checks, in order: tools/shield/verify_release.py (pinned
@@ -212,7 +211,7 @@ def main(argv=None):
     p.add_argument("--cosign", required=True)
     p.add_argument("--cosign-sha256", required=True)
     p.add_argument("--dest")
-    p.add_argument("--expect-repository", default="e-bees-dev/Sentomaru")
+    p.add_argument("--expect-repository", required=True)
     p.add_argument("--expect-ref", default="refs/heads/main")
     p.add_argument("--expect-workflow-path", default=".github/workflows/sdk-release.yml")
     args = p.parse_args(argv)

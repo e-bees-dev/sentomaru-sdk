@@ -23,7 +23,7 @@ buildscript {
 //   (a consumer without the Sentomaru source extracts the published Maven zip instead: verify_sdk.py --dest <new dir>
 //   verifies it and extracts <dir>/maven, the SDK distribution notes)
 // Location override: Gradle property `sentomaru.sdkRepo` or env SENTOMARU_SDK_REPO (absolute path).
-val sentomaruSdkVersion = "0.2.0-rc.2"
+val sentomaruSdkVersion = "0.2.0-rc.3"
 val sentomaruSdkRepo: File = run {
     val override = (findProperty("sentomaru.sdkRepo") as String?) ?: System.getenv("SENTOMARU_SDK_REPO")
     val dir = override?.let { File(it) } ?: File(projectDir, "../../../android/build/repo")

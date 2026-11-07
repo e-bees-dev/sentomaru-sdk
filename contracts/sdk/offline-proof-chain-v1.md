@@ -128,3 +128,15 @@ A resposta de `reconciliations` volta ao backend do consumidor, que a repassa ao
 | OFF-03 | Reboot (`bootCount` +1) entre os itens: (a) relógio correto, (b) relógio de parede recuado 6 h | (a) `accepted`; (b) `offline_clock_tampered` |
 
 Os vetores de bytes dourados (`contracts/sdk/offline-proof-chain-v1-vectors.json`) são conferidos pelo servidor (`OfflineChain`) e pelo SDK Android (`OfflineProofChainTest`, D-26c). O registro tem 110 bytes. A execução com relógio alterado e reboot **num aparelho** é a prova do SDK (fatia seguinte) e exige autorização para instalar.
+
+## 9. Leitura do operador (Console, migração 0100)
+
+`GET /v1/{org}/{app}/{env}/admin/offline/reconciliations?limit=&advisory=`: as reconciliações **do escopo** da rota, da mais nova para a mais antiga, para o operador ver o que o veredito não pôde conferir (`advisories`, §5) sem depender do aparelho. Operador do escopo com `DevicesRead` (Auditor, SecurityOperator e SuperAdmin; PolicyAuthor e Approver recebem 403), módulo `trust`, `Cache-Control: no-store`. É um sinal por instalação da frota, o mesmo conjunto de papéis que lê o registro do aparelho; não foi criada permissão nova.
+
+Resposta: `{"items": [{"permitId", "installationCode", "status", "issuedAt", "reconciledAt", "itemCount", "signals", "bootCount", "advisories"}], "truncated": bool, "windowDays": 90}`. Instantes em UTC (`yyyy-MM-ddTHH:mm:ssZ`).
+
+- **Só o que a reconciliação já gravou sobre o veredito.** Não saem a semente da cadeia, resumos de operação, hashes, assinaturas, valores de relógio nem o id bruto da instalação; a instalação aparece pelo código pseudônimo `INS-…` que o Console já mostra. Nenhum dado pessoal.
+- **O aviso é derivado, não guardado.** `advisories` sai de `bootCount` ("available" ou "unavailable"), a mesma função que monta a resposta da reconciliação; uma reconciliação anterior ao aviso aparece igual. Continua não sendo um `signal`: `signals` e `status` não mudam.
+- **Janela e retenção.** Só reconciliações (`accepted` ou `rejected`) dos últimos 90 dias, a mesma idade em que a purga apaga os itens da cadeia. A linha do permit (status, contagem, sinais, estado do `bootCount`) **não é apagada** pela purga; a migração 0100 não mudou isso, só criou o índice parcial que a leitura usa.
+- `limit` 1..100 (padrão 50); `truncated` é verdadeiro quando havia mais linhas do que o limite. `advisory=offline_boot_unavailable` (único valor) mantém só as reconciliações com aviso. Erros fechados: `offline-list-limit` 400, `offline-list-filter` 400, `store-unavailable` 503.
+- Não prova que o aparelho não omitiu o fim da cadeia nem que as operações são verdadeiras (§1); mostra o veredito e o aviso que o servidor gravou.

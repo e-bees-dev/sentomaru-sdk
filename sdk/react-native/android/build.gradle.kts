@@ -10,7 +10,7 @@ plugins {
 }
 
 // Same single source as the Flutter plugin (the vendor's test sdk registry check keeps them equal).
-val sentomaruSdkVersion = "0.2.0-rc.2"
+val sentomaruSdkVersion = "0.2.0-rc.3"
 val sentomaruSdkRepo: File = run {
     val override = (findProperty("sentomaru.sdkRepo") as String?) ?: System.getenv("SENTOMARU_SDK_REPO")
     val dir = override?.let { File(it) } ?: File(projectDir, "../../android/build/repo")

@@ -71,6 +71,12 @@ import java.util.concurrent.TimeUnit
  *   The repeated answer is final: never a second reattestation for the same operation. Not combined with `reattest=true`
  *   (refused: the second reattestation of the run would meet the server's interval).
  *
+ * - `bare-before` and `bare-after` (D-06i-e, only with the argument `candidateSequence=true`, [RaspLabCandidateSequence]): a
+ *   signed operation whose snapshot comes from `defaultDetectors()` only, so it carries no state for the RASP
+ *   capabilities; a rule on one of them does not match it. They come before and after the `collected` operations of
+ *   the run so that ONE installation can show the allow, challenge, allow shape of a false-positive candidate. The
+ *   `unsigned-snapshot` is not that allow (its DETECTED states still match). Default off: the run is unchanged.
+ *
  * D-12h also passes `operationDelayMs` (0..15000, default 0): the wait before each
  * `collected` operation after the first, so the server's background read of the build registry (D-12c-2,
  * `reference_pending` on the first evaluation) has answered before the next one.
@@ -107,6 +113,7 @@ class RaspLabCasesInstrumentedTest {
     private val reattestChallengeArgument = arguments.getString("reattestChallenge", "false")
     private val deadlineArgument: String? = arguments.getString("deadlineMs")
     private val warmupArgument = arguments.getString("warmup", "0")
+    private val candidateSequenceArgument: String? = arguments.getString(RaspLabCandidateSequence.ARGUMENT)
     private val json = "application/json".toMediaType()
 
     private lateinit var api: String
@@ -115,6 +122,7 @@ class RaspLabCasesInstrumentedTest {
     private lateinit var client: SentomaruClient
     private lateinit var http: OkHttpClient
     private lateinit var collector: SignalsCollector
+    private lateinit var bareCollector: SignalsCollector
     private var deadlineMs = 0L
 
     /** The app's public routes the signature covers (the consumer role is this test; the API never contacts them). */
@@ -143,6 +151,8 @@ class RaspLabCasesInstrumentedTest {
         assertTrue("deadlineMs must be an integer in $DEADLINE_RANGE", deadline != null && deadline in DEADLINE_RANGE)
         deadlineMs = deadline!!
         collector = SignalsCollector(detectors = detectors, deadlineMs = deadlineMs)
+        // D-06i-e: the default detectors only (no RASP capability), same deadline; used by the `bare-*` operations.
+        bareCollector = SignalsCollector(detectors = SignalsCollector.defaultDetectors(), deadlineMs = deadlineMs)
         // Real TLS to the API (no trust override), no redirect (it would carry the token elsewhere) and no silent retry
         // (a retried POST could spend a single-use challenge or nonce twice and hide what the case measured).
         http = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
@@ -396,16 +406,22 @@ class RaspLabCasesInstrumentedTest {
         assertTrue("reattest and reattestChallenge are separate runs", !(reattestArgument == "true" && reattestChallengeArgument == "true"))
         val warmup = warmupArgument.toIntOrNull()
         assertTrue("warmup must be an integer in 0..3", warmup != null && warmup in 0..3)
+        val candidateSequence = RaspLabCandidateSequence.parse(candidateSequenceArgument)
+        assertTrue("${RaspLabCandidateSequence.ARGUMENT} must be true or false", candidateSequence != null)
         assertTrue("enrollment failed (see the d05gCase status)", enroll())
         warmUp(warmup!!)
         var ok = true
-        repeat(operations!!) { i ->
-            if (i > 0 && delay!! > 0) Thread.sleep(delay)
-            ok = case("collected") {
-                val snapshot = collector.snapshot(context)
+        var collectedSoFar = 0
+        RaspLabCandidateSequence.plan(operations!!, candidateSequence!!).forEachIndexed { step, kind ->
+            val i = if (kind == RaspLabCandidateSequence.Kind.COLLECTED) collectedSoFar else -(step + 2)
+            if (step > 0 && delay!! > 0) Thread.sleep(delay)
+            val source = if (kind == RaspLabCandidateSequence.Kind.COLLECTED) collector else bareCollector
+            ok = case(RaspLabCandidateSequence.caseId(kind)) {
+                val snapshot = source.snapshot(context)
                 evaluate(client.sign("POST", "$operationUrl?seq=$i", OPERATION, body(i),
                     mapOf(SIGNALS_HEADER to header(snapshot)))) to snapshot
             } && ok
+            if (kind == RaspLabCandidateSequence.Kind.COLLECTED) collectedSoFar++
         }
         ok = case("unsigned-snapshot") {
             val snapshot = collector.snapshot(context)
