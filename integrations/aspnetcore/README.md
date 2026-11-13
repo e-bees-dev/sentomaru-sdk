@@ -50,6 +50,99 @@ do `HttpClient` também para a inscrição. Os dois têm teto de 5 min, conferid
 
 `DeviceAssuranceLevel.Observe` (antigo `DeviceTrustLevel.Observe`/`RuntimeTrust`) é **só telemetria e não oferece proteção**: a action sempre roda; se houver prova ela é avaliada e o veredito vai para o log. Nunca é padrão (`ZeroTrust` é); declare-o explicitamente só em operações conscientemente desprotegidas. `Enabled: false` desliga a verificação: em `Development` com aviso; fora dele só com `DisabledAcknowledged: true` (log Error), caso contrário o host não sobe e, se a validação for contornada, o filtro responde 503.
 
+## 4.17.0 — observação web pronta (só acréscimos; não publicado)
+
+Uma chamada de registro e uma linha no ponto onde o host já valida o desafio de bot (CAPTCHA/Turnstile/similar). Sem banco, sem migração, sem worker nem armazenamento próprio no host. Desligado por padrão: com `Enabled` falso nada é enviado nem gravado.
+
+```csharp
+// Program.cs (depois de AddSentomaruClient): o único diretório que o pacote precisa
+services.AddSentomaruWebObservation(o =>
+{
+    o.Enabled = builder.Configuration.GetValue<bool>("Sentomaru:Web:Enabled");
+    o.OutcomeDirectory = "/var/lib/app/sentomaru-web";
+});
+
+// onde o host valida o desafio (injete ISentomaruWebObserver); passed: true | false | null (sem veredito)
+observer.ObserveChallenge("login", passed);
+```
+
+Há também `AddSentomaruWebObservation(IConfiguration, "Sentomaru:Web")` (seção com as mesmas opções).
+
+- **Fonte única.** Só o desafio tem fonte: passou = `NOT_DETECTED`, falhou = `DETECTED`, ausência/erro/ignorado = `UNKNOWN` (`SentomaruWebChallengeState` também serve). Os outros quatro sinais do catálogo vão **sempre `UNKNOWN`, nunca `NOT_DETECTED`**. A resposta é só consultiva e nunca muda o que o usuário vê.
+- **Sem espera, sem repetição.** `ObserveChallenge` volta na hora; a chamada tem prazo próprio (`Deadline`, 1 s) e qualquer falha, recusa ou tempo esgotado só vira contador. Só age com `SentomaruClientOptions.Enabled` também ligado. `ObserveChallengeAsync` espera o fim (testes, desligamento). `Operations` é uma lista opcional de nomes permitidos; vazia, vale qualquer nome `[a-z0-9._-]{1,64}` (passe constantes, nunca id de conta, pedido ou sessão).
+- **Contadores.** `SentomaruWebObservationMetrics` (por operação e resultado: `skipped`, `build-null`, `200`/código HTTP, `exception`, `timeout`, `outcome-recorded`, `outcome-skipped`, `outcome-failed`) e o medidor `Sentomaru.AspNetCore.Web` (`sentomaru.web.observations`) para OpenTelemetry/Prometheus.
+- **Desfecho por célula, em arquivo.** Cada resposta válida soma 1 na célula (dia UTC, operação, cinco estados, ação avaliada, versão da política): sem conta, sessão, aparelho, IP nem hora. Os contadores ficam em `OutcomeDirectory`, um arquivo JSON por dia e por processo (escrita atômica; vários processos dividem o diretório sem travar um ao outro, a leitura junta os arquivos; dias com mais de `OutcomeRetentionDays`, 90, são apagados). Sem `OutcomeDirectory` os contadores ficam em memória. Resposta inválida (sem versão de política, ação fora de `allow`/`challenge`/`defer`) e falha de gravação não chegam ao chamador.
+- **Tabela semanal.** O serviço de exportação vem registrado pela mesma chamada e escreve `web-outcome-table-v1` (`contracts/web/web-outcome-table-v1.md`) como arquivo, um por semana fechada (segunda a segunda, UTC) e versão de política, em `OutcomeDirectory/tables` (ou `ExportDirectory`), sem reescrever o existente. Célula com menos de 5 avaliações é omitida; tudo sai `unlabeled` (sem fonte de rótulo). Não há endpoint nem envio a ninguém. `ExportEnabled = false` desliga. `SentomaruWebOutcomeTable.Build` é o builder puro.
+- **Ponto de extensão opcional.** `ISentomaruWebOutcomeStore` (`RecordAsync`, `ReadAsync`) só existe para quem quiser outro armazenamento: `services.AddSingleton<ISentomaruWebOutcomeStore, MeuStore>()`. Não é o caminho padrão.
+
+## Mensagem ao usuário final (só acréscimos; não publicado)
+
+`SentomaruUserMessage` traz o texto padrão de uma operação bloqueada (`pt-BR`, `en`, `es`: "Algumas operações críticas estão bloqueadas até a aprovação…"), a resolução de idioma e o mapa de código de recusa para situação (`contracts/sdk/user-message-v1.md`). Com `SentomaruClientOptions.IncludeUserMessage = true` o corpo de recusa (401 `proof-required`/`challenge-required`, 403, 5xx) ganha o membro `message`, no idioma de `Accept-Language`; `UserMessages` troca o texto por idioma (em branco = padrão). Desligado por padrão: o corpo de recusa é contrato que os apps já leem e fixam, então segue idêntico até o host ligar. Código e status nunca mudam; `operation-replayed`, `caller-context-missing` e `body-limit` não levam mensagem; o texto não traz código nem motivo.
+
+## 4.16.0 — avaliação web de política (só acréscimos; não publicado)
+
+O backend do consumidor que observa sinais web (catálogo fechado) pergunta à política `channel: web` do escopo (`contracts/web/web-evaluation-v1.md`):
+
+```csharp
+var request = SentomaruWeb.TryBuild("checkout", [(SentomaruWebSignals.CookieReplayNoProof, SentomaruWebSignalStates.Detected)]);
+if (request is not null)
+{
+    var result = await client.EvaluateWebAsync(request, ct);   // POST /v1/{org}/{app}/{env}/web/evaluations
+    if (result.Succeeded) { var seen = result.Value!.EvaluatedAction; /* o consumidor decide; nunca bloqueie só por isto */ }
+}
+```
+
+- **Sempre consultiva.** `Advisory` é `true`, `Mode` é `shadow` e `Recommendation` nunca é `challenge` nem `deny`; resposta que diga outra coisa vira `502 invalid-response`. `EvaluatedAction` é o que as regras diriam. Um sinal web é **declaração** do backend ou do navegador: pode ser forjado ou suprimido, e não decide sozinho.
+- **`SentomaruWeb.TryBuild`** devolve `null` para operação fora de `[a-z0-9._-]{1,64}`, sinal fora do catálogo, estado fora de `DETECTED`/`NOT_DETECTED`/`UNKNOWN`, sinal repetido ou mais de 16: o servidor responderia `400 web-evaluation-format` para o corpo inteiro. Sinal que você não lista o servidor lê como `UNKNOWN`, nunca como limpo.
+- Escopo sem política web ativa: `200` com `PolicyId` nulo, `defer` e `WEB_POLICY_NONE`. Precisa de um Sentomaru com a migração 0126.
+- `EvaluateWebAsync` tem implementação padrão 501 `not-implemented`: um cliente escrito antes da 4.16.0 continua compilando. Nada é enviado além de operação e sinais: sem sessão, cookie, conta, usuário, IP, User-Agent ou URL.
+
+## 4.15.0 — leitor do veredito da reconciliação offline (só acréscimos; não publicado)
+
+O backend do consumidor que repassa a reconciliação do app (D-26) e guarda a resposta ganha o mesmo leitor puro que os SDKs Android, Dart e Swift já têm:
+
+```csharp
+var verdict = SentomaruOfflineVerdict.Parse(responseBody);   // null quando não é um veredito bem formado
+if (verdict is { Accepted: true, Advisories.Count: > 0 }) { /* prova mais fraca: o consumidor pondera */ }
+```
+
+- **`Signals`** só guarda os três códigos do contrato (`offline_clock_tampered`, `offline_chain_broken`, `offline_chain_gap_detected`); código fora deles, ou resposta que se contradiz (aceita com sinal, recusada sem), não é veredito (`null`).
+- **`Advisories`** (v1.18) diz o que o veredito não pôde conferir (hoje `offline_boot_unavailable`). **Não é sinal e nunca muda `Accepted`.** Código desconhecido é mantido, repetição cai, lê no máximo 8, e lista ausente ou malformada vira lista vazia: nunca é motivo para recusar o veredito.
+- Não chama o Sentomaru e não decide nada; o Índice de Risco não lê o aviso.
+
+## 4.14.0 — rótulos de segmento na avaliação de Fraud (só acréscimos; não publicado)
+
+A calibração do Fraud (F-03c) segmenta por plataforma, versão do SDK, nível de atestação e operação, e o servidor só os guarda se a avaliação os declarar em `context` (migração 0122). O adaptador ganhou o campo e dois auxiliares:
+
+```csharp
+var request = new FraudEvaluationRequestDto { DeviceId = deviceHandle, SubjectId = accountId }
+    .WithInstallation(HttpContext)
+    .WithOperation(HttpContext)                                         // a operação da rota que o filtro protegeu (ex.: "pix.transfer")
+    .WithContext(platform: "android", sdkVersion: "0.6.1", attestationLevel: "hardware-key-app-match");  // só o que o consumidor realmente sabe
+```
+
+- **O que o adaptador sabe sozinho:** só a operação (o nome declarado na própria rota, em `HttpContext.Items[SentomaruIntegrityAttribute.OperationItem]`, nunca lido do cliente). A resposta da avaliação não traz plataforma, versão do SDK nem nível de atestação: esses três só entram se quem integra os tiver (o app os envia ao backend, ou o backend os lê do que já guarda). Não os deduza do `User-Agent`.
+- **Declarado, não verificado, nunca pontuado.** O campo só alimenta o relatório de calibração; não muda o score, a decisão nem a política.
+- **Formato estreito, não vocabulário fechado.** Só `platform` (android, ios ou web) e `attestationLevel` (um degrau do `assurance-levels-v1` ou `not-covered`) são conjuntos fechados. `sdkVersion` é uma versão pontilhada de 2 a 4 partes numéricas com sufixo `-`/`+` opcional (até 32 caracteres); `operation` tem de 1 a 48 de `[0-9A-Za-z._-]`, começa com letra e não tem sequência de 5 dígitos. Esses dois são rótulos que o consumidor escolhe: o formato dificulta, mas não impede, pôr ali um identificador de pessoa (um nome curto cabe). **Envie só nomes de rota e de build, nunca id de conta, e-mail ou nome.** O servidor recusa a avaliação inteira (400 `fraud-evaluation-format`) se um membro sair do formato, por isso `WithContext` descarta o membro inválido em vez de enviá-lo.
+- **Só com servidor 0122 ou mais novo.** Um Sentomaru anterior recusa o membro `context`. Sem chamar `WithContext`/`WithOperation`, o corpo é o mesmo da 4.13.0 (o membro sai omitido, não nulo).
+
+## 4.12.0 — a instalação chega à avaliação de Fraud (só acréscimos; não publicado)
+
+`POST fraud/evaluate` só lê o histórico de atestação do servidor (regra `DEVICE_BOOT_STATE_CHANGED`) se o consumidor declarar `deviceSignals.installationId`. Até aqui nenhum consumidor enviava, e a taxa de divergência da reatestação ficava em zero por falta de entrada. O adaptador agora entrega o id da instalação que o próprio filtro já verificou:
+
+```csharp
+// Depois de [SentomaruIntegrity] ter avaliado esta requisição (a instalação vem de HttpContext.Items, nunca do corpo).
+var request = new FraudEvaluationRequestDto { DeviceId = deviceHandle, SubjectId = accountId, TransactionId = operationId }
+    .WithInstallation(HttpContext);                       // sem avaliação, recusada ou sem id: devolve o pedido como está
+var fraud = await client.EvaluateFraudAsync(request, ct);  // POST /v1/{org}/{app}/{env}/fraud/evaluate
+```
+
+- **Declaração, não prova.** O id é do próprio consumidor; o servidor só o compara com o seu histórico, ignora um id que não pertence ao escopo (a resposta é a mesma de uma instalação sem histórico) e **não guarda o vínculo**. Não passe um id lido do app ou do usuário.
+- **Opcional.** Sem avaliação do Sentomaru na requisição, o campo fica de fora e nada falha. `WithInstallation(Guid)` serve a quem guardou o id de outra forma.
+- **O que é enviado.** Só `deviceId`, `subjectId`, `transactionId`, `deviceSignals.installationId` e `sessionSignals.credentialChangedSecondsAgo` (0 a 2592000 s); o servidor recusa membros que não conhece, por isso o adaptador não envia outros.
+- `ISentomaruClient.EvaluateFraudAsync` tem implementação padrão 501 `not-implemented`: um cliente escrito antes da 4.12.0 continua compilando.
+- Quem chama `POST /fraud/evaluate` fica a cargo de quem integra; este adaptador só entrega o campo. Contrato: `contracts/fraud/api-v1.md`, seção "Declared installation id: who sends it".
+
 ## 4.7.0 — núcleo de decisão sem MVC (só acréscimos; não publicado)
 
 - `SentomaruEvaluationPipeline.DecideAsync(HttpContext, SentomaruEvaluationOptions, ILogger?)` é a decisão do

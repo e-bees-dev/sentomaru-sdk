@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { createSentomaru } from '../src/bridge.ts';
-import { SentomaruError, type NativeSentomaru } from '../src/types.ts';
+import { SentomaruError, type EnrollmentChallenge, type NativeSentomaru } from '../src/types.ts';
+
+const sampleChallenge: EnrollmentChallenge = {
+  id: '11111111-2222-4333-8444-555555555555', token: 'dG9rZW4', expiresAtEpochMs: 1_800_000_000_000,
+  attestationChallengeB64: 'YXR0ZXN0',
+};
 
 const contract = JSON.parse(readFileSync(new URL('../../../contracts/sdk/hybrid-bridge-v1.json', import.meta.url), 'utf8'));
 
@@ -19,7 +24,7 @@ const sample: Record<string, unknown> = {
   organization: 'org', app: 'app', environment: 'hml', enrollmentUrl: 'https://api.example.test/enroll', allowedHosts: ['api.example.test'],
   rotationGracePeriodDays: 3, playIntegrityCloudProjectNumber: 1, renewalUrl: 'https://api.example.test/renew',
   reattestationChallengeUrl: 'https://api.example.test/c', reattestationSubmitUrl: 'https://api.example.test/s',
-  reattestationMinIntervalSeconds: 60, challenge: 'ch', strongBox: true, requiresHardware: false, method: 'POST',
+  reattestationMinIntervalSeconds: 60, challenge: sampleChallenge, strongBox: true, requiresHardware: false, method: 'POST',
   targetUri: 'https://api.example.test/x', operation: 'op', body: new Uint8Array([1, 2, 3]), optional: { a: 'b' }, rasp: true,
   expectedSignerDigests: ['a'.repeat(64)], allowPlainFallback: false, plainStringsKey: 'k', key: 'asset',
 };
@@ -72,7 +77,7 @@ test('a rejection keeps the stable code; anything else is a ChannelError', async
 
 test('the facade adds no default: an omitted option goes as undefined', async () => {
   const { calls, sdk } = fake();
-  await sdk.enroll({ challenge: 'c' });
+  await sdk.enroll({ challenge: sampleChallenge });
   assert.equal(calls[0]!.args.strongBox, undefined);
   assert.equal(calls[0]!.args.requiresHardware, undefined);
 });

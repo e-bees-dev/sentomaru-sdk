@@ -56,4 +56,21 @@ class PluginConfigTest {
         for (bad in listOf<Any>("http://api.example.com/sessions", "https://other.example.com/sessions", " ", 42))
             assertThrows(PluginConfig.Invalid::class.java) { PluginConfig.parse("acme", "field", "prod", url, hosts, 3, null, bad) }
     }
+
+    // D-F1: sdkModes self-declaration (Fase F, ativação de módulos em cliente novo); absent = false, same as the
+    // native SDK default, never a ConfigurationError.
+    @Test fun declaredModesDefaultToFalseAndRoundTripWhenGiven() {
+        val defaults = PluginConfig.parse("acme", "field", "prod", url, hosts, 3)
+        assertEquals(false, defaults.declaredEnforce)
+        assertEquals(false, defaults.declaredInstallationResponse)
+
+        val declared = PluginConfig.parse("acme", "field", "prod", url, hosts, 3, null, null, true, true)
+        assertEquals(true, declared.declaredEnforce)
+        assertEquals(true, declared.declaredInstallationResponse)
+
+        for (bad in listOf<Any>("true", 1, 0))
+            assertThrows(PluginConfig.Invalid::class.java) {
+                PluginConfig.parse("acme", "field", "prod", url, hosts, 3, null, null, bad, null)
+            }
+    }
 }

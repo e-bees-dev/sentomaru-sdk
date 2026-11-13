@@ -1,0 +1,21 @@
+{
+  "name": "@ebees/sentomaru-web",
+  "version": "0.2.0",
+  "description": "Sentomaru web channel, browser side: signs one HTTP request with a non-extractable WebCrypto P-256 key (strict profile of RFC 9421). Advisory signal only; see contracts/web/web-request-signature-v1.md.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "sideEffects": false,
+  "main": "dist/sentomaru-web-signer.mjs",
+  "exports": {
+    ".": "./dist/sentomaru-web-signer.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": ["dist/sentomaru-web-signer.mjs", "SRI.json", "README.md"],
+  "engines": { "node": ">=20" },
+  "publishConfig": { "access": "public", "provenance": true },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check:sri": "node scripts/build.mjs --check",
+    "test": "node --test sentomaru-web-signer.test.mjs scripts/sri.test.mjs"
+  }
+}

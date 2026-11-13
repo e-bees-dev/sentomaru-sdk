@@ -68,6 +68,32 @@ public interface ISentomaruClient
         CancellationToken cancellationToken = default) =>
         Task.FromResult(SentomaruClientResult<InstallationStatusDto>.Failure(501, "not-implemented"));
 
+    /// <summary>
+    /// 4.12.0 (Fraud F-10): <c>POST fraud/evaluate</c> with the scoped workload credential. Send the installation the request was verified
+    /// as with <see cref="SentomaruFraud.WithInstallation(FraudEvaluationRequestDto, Microsoft.AspNetCore.Http.HttpContext)"/>, so
+    /// the evaluation can read the boot history; without it the rule has no input. 400 fraud-evaluation-format for a malformed field.
+    /// Default: not supported.
+    /// </summary>
+    Task<SentomaruClientResult<FraudEvaluationResponseDto>> EvaluateFraudAsync(FraudEvaluationRequestDto request,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(SentomaruClientResult<FraudEvaluationResponseDto>.Failure(501, "not-implemented"));
+
+    /// <summary>
+    /// 4.16.0 (WS-F): <c>POST web/evaluations</c> with the scoped workload credential: the backend declares the state of web signals it observed and the
+    /// scope's active <c>channel: web</c> policy answers, ALWAYS advisory (shadow). Build the body with <see cref="SentomaruWeb.TryBuild"/>. 400
+    /// web-evaluation-format, 413 web-evaluation-too-large, 503 store-unavailable. Needs a Sentomaru with migration 0126. Default: not supported.
+    /// </summary>
+    Task<SentomaruClientResult<WebEvaluationResponseDto>> EvaluateWebAsync(WebEvaluationRequestDto request,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(SentomaruClientResult<WebEvaluationResponseDto>.Failure(501, "not-implemented"));
+
+    /// <summary>
+    /// 4.13.0 (fase E): <c>POST consumer/heartbeat</c> with the scoped workload credential: what the consumer says it turned on. Informational; the 204 carries
+    /// no body. 400 heartbeat-format, 404 scope-unknown, 429 heartbeat-instance-limit. Default: not supported.
+    /// </summary>
+    Task<SentomaruClientResult<bool>> SendHeartbeatAsync(ConsumerHeartbeatDto heartbeat, CancellationToken cancellationToken = default) =>
+        Task.FromResult(SentomaruClientResult<bool>.Failure(501, "not-implemented"));
+
     /// <summary>E-06: binds the hash of the user's IdP token to a live grant (the Sentomaru session bindings contract). Default: not supported.</summary>
     Task<SentomaruClientResult<SessionBindingResponseDto>> BindSessionAsync(SessionBindingRequestDto request,
         CancellationToken cancellationToken = default) =>

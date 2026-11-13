@@ -41,6 +41,13 @@ interface Control {
     /** Applies the validated and planned section to the bundle being edited; returns the changes made. */
     fun apply(section: JsonObject, edit: AabEdit, context: ControlContext): List<Change> =
         throw ProtectException(ErrorCode.INTERNAL, "$id changes nothing in the binary")
+
+    /** G-03b3: true when the control also edits an APK ([applyApk]); a control that does not answers `control-failed` for an APK. */
+    val appliesToApk: Boolean get() = false
+
+    /** The same step on the APK being edited (binary manifest, `classesN.dex`). */
+    fun applyApk(section: JsonObject, edit: ApkEdit, context: ControlContext): List<Change> =
+        throw ProtectException(ErrorCode.CONTROL_FAILED, "$id: APK input not supported by this build (AAB only)")
 }
 
 object Controls {
@@ -145,6 +152,11 @@ object RuntimeInjection : Control {
 
     override fun apply(section: JsonObject, edit: AabEdit, context: ControlContext): List<Change> =
         AabInjector.injectRuntime(edit, Controls.text(section, "enrollmentUrl", id))
+
+    override val appliesToApk = true
+
+    override fun applyApk(section: JsonObject, edit: ApkEdit, context: ControlContext): List<Change> =
+        ApkInjector.injectRuntime(edit, Controls.text(section, "enrollmentUrl", id))
 }
 
 /**

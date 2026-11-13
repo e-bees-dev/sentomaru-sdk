@@ -32,7 +32,7 @@ O que ela não confere: se o agente segue as instruções. Quem protege é o por
 Tarefa: configurar o Sentomaru DevSecOps no CI deste repositório (app Android que gera AAB de release).
 Escopo do app no Sentomaru: {{org}}/{{app}}/{{env}}.
 
-Fontes (leia antes de escrever qualquer arquivo), no repositório público e-bees-dev/sentomaru-sdk, na tag do release que você vai usar (liste com git ls-remote --tags; cli-v0.5.0 é a do repositório de origem e pode não existir no público; confira também em Releases: SENTOMARU_CLI_VERSION exige a tag cli-v<versão> com release publicado, tag sem release dá cli-download-failed:http-404):
+Fontes (leia antes de escrever qualquer arquivo), no repositório público e-bees-dev/sentomaru-sdk, na tag do release que você vai usar (liste com git ls-remote --tags; cli-v0.6.1 é a do repositório de origem e pode não existir no público; confira também em Releases: SENTOMARU_CLI_VERSION exige a tag cli-v<versão> com release publicado, tag sem release dá cli-download-failed:http-404):
 - docs/devsecops/CLI_PIPELINE.md §1a, §2, §3b, §3c e §5 (CLI verificada, perfil, Action, portões, saídas)
 - contracts/devsecops/cli-v1.md e contracts/devsecops/cli-distribution-v1.md (contratos da CLI e da distribuição)
 - contracts/devsecops/policy-gate-v1.md (portões de política)
@@ -46,15 +46,15 @@ Faça, nesta ordem:
    o backend protege.
 2. Crie .github/workflows/sentomaru-protect.yml seguindo o bloco "github-action" do guia, com a CLI verificada
    (docs/devsecops/CLI_PIPELINE.md §3b e §1a). Depois do build do AAB de release:
-   - baixe o release cli-v0.5.0 com curl do bucket S3 público
-     https://sentomaru-cli-releases-hml.s3.sa-east-1.amazonaws.com/cli/v0.5.0/ (sem token; o release do GitHub é
+   - baixe o release cli-v0.6.1 com curl do bucket S3 público
+     https://sentomaru-cli-releases-hml.s3.sa-east-1.amazonaws.com/cli/v0.6.1/ (sem token; o release do GitHub é
      o espelho); a chave pública de release fica no repositório em .sentomaru/release-key.pub, que eu entrego com o pino;
    - alternativa: omita `distribution` e este download; a Action baixa e verifica o release do repositório público
      e-bees-dev/sentomaru-sdk, com o `GITHUB_TOKEN` do workflow (docs/devsecops/CLI_PIPELINE.md §3b, "Download
      pela Action"); o pino da chave e a chave pública seguem como abaixo;
-   - confira os verificadores pelos pinos da versão 0.5.0: verify_cli.py
-     a5a8df9e6d39710267abbfdac6223eada67d551255c8cf7bb4dbb4f245bedae5 e verify_release.py
-     106682c3f9a1e0195d1fb12ae6c6e60a7452008eed34bdddf1b496e100b74b0c;
+   - confira os verificadores pelos pinos da versão 0.6.1: verify_cli.py
+     443b68e437f42400a43e0881797ee7dff1b7e56f2351eb62e51720086f4c237b e verify_release.py
+     66192c65c6eb256be60a84f1c4ce3bd6ade97a4ffef6986a036c762fd91263b2;
    - use a Action e-bees-dev/sentomaru-sdk/actions/protect fixada pelo SHA do guia, com expect-repository
      e-bees-dev/Sentomaru (o repositório que construiu e assinou o release, campo repository do statement; não é o repositório público de distribuição), dry-run "true" e o pino da chave de release na variável SENTOMARU_RELEASE_KEY_SHA256 (o pino
      chega por outro canal: nunca o tire do mesmo download);
@@ -96,14 +96,14 @@ Escopo do app no Sentomaru: {{org}}/{{app}}/{{env}}.
 
 Fontes, no repositório público e-bees-dev/sentomaru-sdk, no SHA de main que o operador indicar:
 - docs/api/INTEGRATION_GUIDE.md §4 e §7 (rotas de inscrição do backend e o que o app envia)
-- contracts/sdk/sdk-api-v1.md e sdk/android/README.md (módulos, SDK 0.2.0-rc.3, API do SDK)
+- contracts/sdk/sdk-api-v1.md e sdk/android/README.md (módulos, SDK 0.2.0-rc.4, API do SDK)
 - sdk/flutter/README.md (como gerar o repositório Maven local do SDK)
 - docs/devsecops/CLI_PIPELINE.md §2b (tabela de rotas em uma linha)
 Se não conseguir ler essas fontes, pare e me peça para autenticar o gh no seu terminal. Nunca me peça o token na
 conversa.
 
 Faça:
-1. Adicione br.com.ebees.sentomaru:sdk:0.2.0-rc.3. Ele não está no Maven Central: sai de um repositório Maven
+1. Adicione br.com.ebees.sentomaru:sdk:0.2.0-rc.4. Ele não está no Maven Central: sai de um repositório Maven
    local gerado do código (./gradlew publishAllPublicationsToLocalRepoRepository em sdk/android, como no
    sdk/flutter/README.md). Se não houver um repositório combinado com o operador, pare e pergunte. minSdk 28 e
    permissão INTERNET.

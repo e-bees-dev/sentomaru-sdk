@@ -71,6 +71,10 @@ val runtimeDex by tasks.registering(JavaExec::class) {
 
 sourceSets.main {
     resources.srcDir(runtimeDex)
+    // D-F1 (Fase D, ativação de módulos em cliente novo): `sentomaru policy study` reads the same model
+    // contracts/policy/templates/study-v1.json the C# test suite reads (Integrity.Tests.Policy.StudyPolicyTemplate),
+    // embedded as a classpath resource so the two never drift from different copies.
+    resources.srcDir(rootProject.file("../../contracts/policy/templates"))
 }
 
 dependencies {
@@ -106,6 +110,8 @@ tasks.test {
     systemProperty("android.home", System.getenv("ANDROID_HOME") ?: "")
     // D-21p: APKs of the example apps for the DEX round trip, given by the developer (local run; absent in the CI).
     System.getProperty("sentomaru.dexRoundTripApks")?.let { systemProperty("sentomaru.dexRoundTripApks", it) }
+    // D-21a3: the Android SDK's dexdump, for DexObfuscationMeasurementTest's other static acceptance check (local run; absent in the CI).
+    System.getProperty("sentomaru.dexdump")?.let { systemProperty("sentomaru.dexdump", it) }
     // The API E2E of the shield suite asks a test to export its fixture bundle there: part of the task inputs.
     inputs.property("e2eFixtureDir", System.getenv("SENTOMARU_E2E_FIXTURE_DIR") ?: "")
 }

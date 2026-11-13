@@ -426,6 +426,12 @@ public sealed record SentomaruApiError
     [JsonPropertyName("challengeKind")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ChallengeKind { get; init; }
+
+    /// <summary>4.17.0 (sdk-user-message-v1): the text the app can show the end user when the operation is blocked (language of Accept-Language, host override in
+    /// <see cref="SentomaruClientOptions.UserMessages"/>). Fixed text, no code or reason. Omitted when the refusal is not a block; the code and status never change.</summary>
+    [JsonPropertyName("message")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Message { get; init; }
 }
 
 /// <summary>

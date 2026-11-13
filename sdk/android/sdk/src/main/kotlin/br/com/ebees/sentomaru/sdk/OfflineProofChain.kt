@@ -180,9 +180,18 @@ sealed class OfflinePermitOutcome {
     class Unavailable @JvmOverloads constructor(val retryAfterSeconds: Long? = null) : OfflinePermitOutcome()
 }
 
-/** Result of [SentomaruOfflineChain.reconcileOfflineChain]. [signals] only ever holds the three contract codes. */
+/**
+ * Result of [SentomaruOfflineChain.reconcileOfflineChain]. [signals] only ever holds the three contract codes.
+ * [advisories] (contract v1.18, additive) is what the verdict could not check, today `offline_boot_unavailable`: it is
+ * not a signal itself; since contract v1.19 a batch with a seal that has no boot counter is refused (offline_chain_broken) and the advisory sits beside it. Unknown codes are kept (a
+ * newer server may add one) and a missing or malformed list reads as empty; it is the server's word, not a device value.
+ */
 sealed class OfflineReconcileOutcome {
-    class Verdict(val permitId: UUID, val accepted: Boolean, val itemCount: Int, val signals: List<String>) : OfflineReconcileOutcome()
+    class Verdict(val permitId: UUID, val accepted: Boolean, val itemCount: Int, val signals: List<String>,
+                  val advisories: List<String>) : OfflineReconcileOutcome() {
+        constructor(permitId: UUID, accepted: Boolean, itemCount: Int, signals: List<String>) :
+            this(permitId, accepted, itemCount, signals, emptyList())
+    }
     class Refused(val code: String, val status: Int) : OfflineReconcileOutcome()
     /** Network, 429 or 5xx: the items stay; [retryAfterSeconds] is the server's wait (bounded), `null` if none. */
     class Unavailable @JvmOverloads constructor(val retryAfterSeconds: Long? = null) : OfflineReconcileOutcome()
@@ -289,8 +298,15 @@ class SentomaruOfflineChain(
             if (signals.any { it !in SIGNALS }) return null
             if (status != "accepted" && status != "rejected") return null
             if ((status == "accepted") != signals.isEmpty()) return null
-            OfflineReconcileOutcome.Verdict(id, status == "accepted", count, signals)
+            OfflineReconcileOutcome.Verdict(id, status == "accepted", count, signals, parseAdvisories(text))
         } catch (_: RuntimeException) { null }
+    }
+
+    /** `advisories` of the answer: lower-case codes only, at most [MAX_ADVISORIES], no repeats; anything else reads as none. */
+    private fun parseAdvisories(text: String): List<String> {
+        val list = Regex("\"advisories\"\\s*:\\s*\\[([^\\]]*)]").find(text)?.groupValues?.get(1) ?: return emptyList()
+        if (!Regex("\\s*(\"[a-z_]{1,64}\"\\s*(,\\s*\"[a-z_]{1,64}\"\\s*)*)?").matches(list)) return emptyList()
+        return Regex("\"([a-z_]+)\"").findAll(list).map { it.groupValues[1] }.distinct().take(MAX_ADVISORIES).toList()
     }
 
     private fun code(answer: TransactionAnswer): String =
@@ -301,6 +317,7 @@ class SentomaruOfflineChain(
         const val RECONCILE_OPERATION = "offline_reconcile"
         const val UNEXPECTED = "unexpected-response"
         const val MAX_ANSWER_CHARS = 16 * 1024
+        const val MAX_ADVISORIES = 8
         val SIGNALS = setOf("offline_clock_tampered", "offline_chain_broken", "offline_chain_gap_detected")
     }
 }

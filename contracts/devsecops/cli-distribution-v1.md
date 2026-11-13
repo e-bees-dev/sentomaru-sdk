@@ -13,7 +13,7 @@ pública. A versão atual, a data e os pinos de cada release estão nas notas do
 |---|---|
 | `sentomaru-protect-<versão>.zip` | a árvore `installDist` (launcher `bin/sentomaru`, JARs com o runtime DEX embutido e, em `lib/verify/`, os dois verificadores de terceiro do Trust usados por `sentomaru verify`) sob `sentomaru-protect-<versão>/`; entradas em ordem, horário fixo (1980-01-01), modos 0755 em `bin/` e 0644 no resto. Reconstruível bit a bit a partir do commit |
 | `SHA256SUMS` | `<sha256>  sentomaru-protect-<versão>.zip` |
-| `statement.json` | in-toto Statement v1, `predicateType` SLSA Provenance v1, `buildType` `https://e-bees.com.br/sentomaru/devsecops/cli-dist/v1`; sujeitos: o zip e o `SHA256SUMS`; `externalParameters.workflow` (`repository`, `ref`, `path`), `internalParameters` (`versionName` = `build` de `--version --json`, `buildNumber`, `contractVersion`, `runtimeSdk`, `runtimeDexSha256`), `resolvedDependencies` (commit) |
+| `statement.json` | in-toto Statement v1, `predicateType` SLSA Provenance v1, `buildType` `https://e-bees.com.br/sentomaru/devsecops/cli-dist/v1`; sujeitos: o zip e o `SHA256SUMS`; `externalParameters.workflow` (`repository`, `ref`, `path`), `internalParameters` (`versionName` = `build` de `--version --json`, `buildNumber`, `contractVersion`, `runtimeSdk`, `runtimeDexSha256`), `resolvedDependencies` (commit e arquivos de trava do Gradle). **Item 36 (8/11/2026):** `internalParameters.runner` = `{environment, os, arch}` (`RUNNER_ENVIRONMENT` = `github-hosted` ou `self-hosted`, `RUNNER_OS`, `RUNNER_ARCH`; nunca o nome da máquina) e, em `resolvedDependencies`, uma entrada por arquivo de trava (`--material`, `uri` = `git+https://github.com/<repo>@<commit>#<caminho>`, `digest.sha256`), depois da entrada do commit. Statements sem `runner` (builds locais e releases anteriores) não dizem nada sobre o runner; um verificador deve ler isso como "não declarado", nunca como hospedado. `verification/check_release_claims.py` exige as flags em toda chamada do empacotador nos workflows. O `verify_cli.py` lê o campo (item 36, parte do verificador, 8/11/2026): forma fechada (`runner-shape`), `--require-runner` recusa a ausência (`runner-not-asserted`), `--expect-runner-environment` recusa outra classe (`runner-environment`) ou a ausência; sem as flags, um statement sem `runner` passa mas escreve `cli-notice: runner-not-asserted` no stderr (nunca em silêncio) e um com `runner` escreve `cli-notice: runner environment=… os=… arch=…`. É a afirmação do empacotador, assinada pela chave de release, não de terceiro. |
 | `signature.sigstore.json` | bundle Sigstore v0.3 de **assinatura de mensagem** sobre os bytes do statement (`cosign sign-blob`, sem log de transparência) |
 
 O empacotador escreve num `--out` novo **ou vazio** (um diretório vazio existente é aceito) e recusa um com arquivos.
@@ -54,6 +54,9 @@ repositório, e que os guias trazem a linha da release publicada.
 | 0.4.0 | `a5a8df9e6d39710267abbfdac6223eada67d551255c8cf7bb4dbb4f245bedae5` | `12e20abc162831c1dfca9f160fd95becc7ed5bb8ef98b5bcbba6d796cf0234aa` |
 | 0.5.0 | `a5a8df9e6d39710267abbfdac6223eada67d551255c8cf7bb4dbb4f245bedae5` | `106682c3f9a1e0195d1fb12ae6c6e60a7452008eed34bdddf1b496e100b74b0c` |
 | 0.6.0 | `a5a8df9e6d39710267abbfdac6223eada67d551255c8cf7bb4dbb4f245bedae5` | `66192c65c6eb256be60a84f1c4ce3bd6ade97a4ffef6986a036c762fd91263b2` |
+| 0.6.1 | `443b68e437f42400a43e0881797ee7dff1b7e56f2351eb62e51720086f4c237b` | `66192c65c6eb256be60a84f1c4ce3bd6ade97a4ffef6986a036c762fd91263b2` |
+
+**Linha 0.6.1 (publicada em 8/11/2026, run 42526346854, commit `c4cfa8d6`):** o `verify_cli.py` (`443b68e4…`) lê a classe do runner assinada (item 36: `runner-shape`, `--require-runner`, `--expect-runner-environment`, aviso `cli-notice: runner-not-asserted` no stderr); o `verify_release.py` é o da 0.6.0 (`66192c65…`) e os controles são os da 0.6.0. O zip publicado tem SHA-256 `4ec358940ac289bf45a82ff6e01581468391f131c8ece3bc72e77b8863dd0113` (digest do ativo no release `cli-v0.6.1` do GitHub). A linha 0.6.0 acima não muda (bytes publicados). A linha 0.6.1 é fixa desde a publicação.
 
 A linha 0.5.0 é a da release `cli-v0.5.0`, **publicada** em 30/10/2026 (escrita na D-08f, 27/10/2026, e fixa desde a publicação). O `verify_cli.py` não mudou; o
 `verify_release.py` mudou em 30/10/2026 (gerador do relatório de proteção 1.0.5): copia o cosign uma vez para o
@@ -72,6 +75,7 @@ código é o `Controls.all` e que o perfil de exemplo do guia só usa controles 
 | 0.4.0 | `runtime-injection`, `network-signing` |
 | 0.5.0 | `runtime-injection`, `network-signing`, `build-obfuscation`, `asset-encryption`, `network-pinning` |
 | 0.6.0 | `runtime-injection`, `network-signing`, `build-obfuscation`, `asset-encryption`, `network-pinning`, `ui-shield` |
+| 0.6.1 | `runtime-injection`, `network-signing`, `build-obfuscation`, `asset-encryption`, `network-pinning`, `ui-shield` |
 
 A linha 0.5.0 ganhou `network-pinning` na D-07f (27/10/2026), antes da publicação (a `cli-v0.5.0` saiu em 30/10/2026 com a linha completa); quem
 construiu a CLI do repositório entre a D-08f e a D-07f viu a lista sem `network-pinning`.
@@ -80,7 +84,7 @@ linhas 0.5.0 das duas tabelas (os verificadores e a lista de controles são os m
 `SENTOMARU_LAB=1` passou a sair 2 (`usage`, `lab-gate-registered`); a mudança está registrada no
 [contrato da CLI](cli-v1.md#invocação). Quem construiu a CLI do repositório antes dela tem uma 0.5.0 que aceitava o gate
 numa corrida registrada.
-A linha 0.6.0 é de uma versão **a publicar** (G-10c, 5/11/2026): o `verify_cli.py` é byte a byte o da 0.5.0 e o `verify_release.py` só trocou os exemplos do cabeçalho por valores neutros (6/11/2026, antes da publicação; nenhuma linha de código mudou), por isso o pino dele é novo; a lista de controles ganha `ui-shield`, que sai do gate de laboratório; o "Estado" deste documento continua `cli-v0.5.0` até a publicação.
+A linha 0.6.0 é a da release `cli-v0.6.0`, **publicada** em 8/11/2026 (escrita na G-10c, 5/11/2026, antes da publicação, e fixa desde então): o `verify_cli.py` é byte a byte o da 0.5.0 e o `verify_release.py` só trocou os exemplos do cabeçalho por valores neutros (6/11/2026, antes da publicação; nenhuma linha de código mudou), por isso o pino dele é novo; a lista de controles ganha `ui-shield`, que sai do gate de laboratório.
 A linha 0.5.0 ganhou `asset-encryption` na D-14e (30/10/2026), também antes da publicação, na ordem das etapas
 (`harden/20`, entre `build-obfuscation` e `network-pinning`); quem construiu a CLI do repositório antes dela viu a
 lista sem `asset-encryption`, e o controle só existia com `SENTOMARU_LAB=1`.
@@ -107,7 +111,7 @@ chegue junto com os arquivos do release nunca é aceito.
 guarda `<out>/report.json` como artefato (sempre) e falha com o código de saída da CLI; publica `exit-code` e `code` (primeiro erro do relatório) também quando a CLI recusa, e com `fail: "false"` só publica sem falhar o passo. Uma
 distribuição que não verifica falha **antes** de a CLI rodar. Fixe a Action por SHA de commit (`uses:
 e-bees-dev/sentomaru-sdk/actions/protect@<sha>`). A execução real (`dry-run: "false"`: AAB com `sign: openbao`, G-03e2,
-`keystore` ou `none`) exige `SENTOMARU_BUILDER_TOKEN` e `SENTOMARU_API` no ambiente do job; o APK chega na G-03b3.
+`keystore` ou `none`) exige `SENTOMARU_BUILDER_TOKEN` e `SENTOMARU_API` no ambiente do job; a entrada APK (G-03b3) está no código, sem release.
 
 ### Download dentro da Action (G-05)
 

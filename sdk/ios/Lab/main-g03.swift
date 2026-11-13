@@ -63,6 +63,33 @@ func rawAttempt(_ id: String, _ instruction: String, biometricOnly: Bool) async 
     } catch { emit(id, "FAIL", "setup:\(error)") }
 }
 
+/// I-3n: the cache question WITHOUT a face. A fresh LAContext with `interactionNotAllowed` may not show any prompt, so a signature
+/// can only come from an authentication the system kept (a reuse window). `signed` = a hidden cache exists (FAIL); a not-interactive
+/// error = nothing was kept (PASS). It does not depend on the person's face, which is what made I-3a ambiguous: Face ID signs by
+/// itself when it recognises a partly covered face. The raw error is logged. Limit: it proves the absence of reuse for a fresh
+/// context with reuseDuration 0, not that cancelling a real prompt works (that stays with I-3a).
+func noPromptAttempt(_ id: String, _ when: String) async -> String {
+    do {
+        guard let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly, [.privateKeyUsage, .biometryCurrentSet], nil) else { emit(id, "FAIL", "no-access-control"); return "setup" }
+        let blob = try SecureEnclave.P256.Signing.PrivateKey(accessControl: access).dataRepresentation
+        let start = DispatchTime.now().uptimeNanoseconds
+        let outcome: String = await Task.detached {
+            let ctx = LAContext()
+            ctx.interactionNotAllowed = true
+            do {
+                let key = try SecureEnclave.P256.Signing.PrivateKey(dataRepresentation: blob, authenticationContext: ctx)
+                _ = try key.signature(for: Data("g03 no prompt".utf8))
+                return "signed"
+            } catch let e as LAError { return "LAError.\(e.code.rawValue) \(e.code)" }
+            catch { let ns = error as NSError; return "error domain=\(ns.domain) code=\(ns.code)" }
+        }.value
+        let ms = Int((DispatchTime.now().uptimeNanoseconds - start) / 1_000_000)
+        let kind = outcome == "signed" ? "signed" : (outcome.contains("-1004") || outcome.contains("notInteractive") || outcome.contains("-25308") ? "refused" : "other")
+        emit(id, kind == "signed" ? "FAIL" : (kind == "refused" ? "PASS" : "MEASURED"), "when=\(when) outcome=\(outcome) ms=\(ms) \(kind == "signed" ? "hidden-auth-cache" : (kind == "refused" ? "no-auth-kept" : "inconclusive-error"))")
+        return kind
+    } catch { emit(id, "FAIL", "setup:\(error)"); return "setup" }
+}
+
 func runG03() async {
     let keys = SecureEnclaveTransactionKeys(service: "br.com.ebees.sentomaru.g03lab")
     let signer = TransactionSigner(keys: keys, installationAlias: "g03.lab")
@@ -80,10 +107,22 @@ func runG03() async {
         // be mistaken for the I-3a prompt. The person allows it and authenticates normally. Not part of any verdict.
         await rawAttempt("I-0w", "AQUECIMENTO: se aparecer alerta pedindo permissao do Face ID, toque em Permitir; depois AUTENTIQUE normalmente", biometricOnly: true)
 
-        // I-3a: cancel FIRST, before any authentication in this run: nothing can be reused.
-        await probe("I-3a")
-        let a = await attempt(signer, "I-3a", "CANCELE: cubra o rosto ou olhe para o lado e ENTAO toque em Cancelar", op, body)
-        emit("I-3a-verdict", a.header == nil ? "PASS" : "FAIL", a.header == nil ? "cancelled-before-any-auth" : "signed-without-auth")
+        // I-3n-0: before any authentication in this run, no prompt allowed: nothing may sign.
+        var cache = [await noPromptAttempt("I-3n-0", "before-any-auth")]
+
+        // I-3a: cancel FIRST, before any authentication in this run. A `signed` here is ambiguous: Face ID signs by itself when it
+        // recognises a partly covered face (rounds 2 and 3 signed in ~1.7-2 s). So up to 3 tries, each asking to hide the WHOLE face;
+        // the verdict is PASS on the first cancel, and `signed` on all tries is INCONCLUSIVE (face recognised), not a defect, unless
+        // the I-3n lines say a hidden authentication cache exists.
+        var cancelledAt = 0
+        for n in 1...3 {
+            await probe("I-3a")
+            let a = await attempt(signer, "I-3a", n == 1 ? "CANCELE: cubra o rosto ou olhe para o lado e ENTAO toque em Cancelar"
+                : "TENTATIVA \(n) de 3: o Face ID reconheceu voce. Tampe o rosto INTEIRO com a mao (olhos, nariz e boca) ou vire a tela para baixo, espere o Face ID falhar e ENTAO toque em Cancelar", op, body)
+            emit("I-3a-try-\(n)", a.header == nil ? "PASS" : "MEASURED", a.header == nil ? "cancelled" : "signed-face-recognised-or-reused ms=\(a.ms)")
+            if a.header == nil { cancelledAt = n; break }
+        }
+        emit("I-3a-verdict", cancelledAt > 0 ? "PASS" : "MEASURED", cancelledAt > 0 ? "cancelled-before-any-auth try=\(cancelledAt)" : "signed-on-3-tries INCONCLUSIVE face-recognised-or-reuse (I-3n decides)")
         emit("I-3a-key", signer.isEnrolled() ? "PASS" : "FAIL", "key-kept-after-cancel")
 
         // I-2: authenticate; the signature must verify.
@@ -100,6 +139,9 @@ func runG03() async {
             }
         } else { emit("I-2a", "FAIL", "not-signed") }
 
+        // I-3n-1: right after the successful authentication, no prompt allowed: a reuse window would sign here.
+        cache.append(await noPromptAttempt("I-3n-1", "right-after-auth"))
+
         // I-3b: right after a successful authentication, ask again and CANCEL.
         let c = await attempt(signer, "I-3b", "CANCELE: cubra o rosto ou olhe para o lado e ENTAO toque em Cancelar (logo depois de autenticar)", op, body)
         emit("I-3b-verdict", c.header == nil ? "PASS" : "MEASURED", c.header == nil ? "cancelled" : "signed-again-ms=\(c.ms)")
@@ -107,8 +149,11 @@ func runG03() async {
         // I-3c: 15 s later, ask again and CANCEL.
         print("SENTOMARU-G03 WAIT 15s"); fflush(stdout)
         try? await Task.sleep(nanoseconds: 15_000_000_000)
+        cache.append(await noPromptAttempt("I-3n-2", "15s-after-auth"))
         let d = await attempt(signer, "I-3c", "CANCELE: cubra o rosto ou olhe para o lado e ENTAO toque em Cancelar (15 s depois)", op, body)
         emit("I-3c-verdict", d.header == nil ? "PASS" : "MEASURED", d.header == nil ? "cancelled" : "signed-again-ms=\(d.ms)")
+
+        emit("I-3n-verdict", cache.contains("signed") ? "FAIL" : (cache.allSatisfy { $0 == "refused" } ? "PASS" : "MEASURED"), "results=\(cache.joined(separator: ","))")
 
         // I-4 (raw, CryptoKit direct, fresh LAContext, LAError code logged). Face ID authenticates BY ITSELF when it sees the
         // face, so a "cancel" is a race the person can lose: cover/turn the face away first, THEN tap Cancel.

@@ -234,6 +234,21 @@ class OfflineProofChainTest {
         assertNotNull(store.map[permitId]) // no verdict: state kept
     }
 
+    @Test fun advisoriesAreReadWithoutChangingTheVerdict() {
+        val p = permit(); val seals = listOf(chain.sealOfflineOperation(p, digest(0)))
+        fun run(body: String) = chain.reconcileOfflineChain(p, seals, "https://consumer.example/r") { TransactionAnswer(200, body) } as OfflineReconcileOutcome.Verdict
+        val head = "{\"permitId\":\"$permitId\",\"status\":\"accepted\",\"itemCount\":1,\"signals\":[],\"bootCount\":\"unavailable\",\"items\":[],"
+        val boot = run("$head\"advisories\":[\"offline_boot_unavailable\"]}")
+        assertTrue(boot.accepted); assertTrue(boot.signals.isEmpty())                       // not a signal: the verdict stands
+        assertEquals(listOf("offline_boot_unavailable"), boot.advisories)
+        assertEquals(listOf("offline_boot_unavailable", "future_code"), run("$head\"advisories\":[\"offline_boot_unavailable\",\"future_code\",\"offline_boot_unavailable\"]}").advisories)
+        assertTrue(run("$head\"advisories\":[]}").advisories.isEmpty())
+        assertTrue(run(head.trimEnd(',') + "}").advisories.isEmpty())                       // an older server: no field
+        for (odd in listOf("[\"Bad Code\"]", "[1]", "[\"a\",]", "[\"" + "x".repeat(65) + "\"]"))
+            assertTrue(odd, run("$head\"advisories\":$odd}").advisories.isEmpty())        // malformed: none, never a refusal
+        assertEquals(8, run("$head\"advisories\":[" + (1..12).joinToString(",") { "\"code_${"abcdefghijkl"[it - 1]}\"" } + "]}").advisories.size)
+    }
+
     @Test fun beginStartsOnceAndNeverOverwritesProgress() {
         val p = OfflinePermit(permitId, seed, now, now.plusSeconds(86400), 3, 120)
         chain.begin(p)

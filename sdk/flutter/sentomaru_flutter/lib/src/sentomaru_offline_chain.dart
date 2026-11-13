@@ -28,7 +28,7 @@ enum SentomaruOfflineError {
   notInitialized,
   storageUnavailable,
 
-  /// This platform has no offline chain in the plugin yet (iOS only today).
+  /// This platform has no offline chain in the plugin (Android and iOS have one; any other platform answers this).
   unsupported,
   channelError,
 }
@@ -99,7 +99,7 @@ class SentomaruOfflineSeal {
 /// Clocks. Android: `SystemClock.elapsedRealtimeNanos` and `Settings.Global.BOOT_COUNT`. iOS has no public BOOT_COUNT: the
 /// native SDK reads `CLOCK_MONOTONIC` (counts sleep, restarts at boot, NTP-slewed) and turns the `kern.bootsessionuuid` sysctl
 /// (a new UUID on every boot) into a counter it keeps itself, which counts only the boots the SDK saw. Without the sysctl every
-/// seal carries `bootCount` 4294967295 (unavailable) and the server applies only the wall-clock rule. Not measured on a device yet.
+/// seal carries `bootCount` 4294967295 (unavailable) and, since contract v1.19 (D-26), the server refuses the chain (offline_chain_broken). Not measured on a device yet.
 class SentomaruOfflineChain {
   const SentomaruOfflineChain();
 
@@ -151,4 +151,54 @@ class SentomaruOfflineChain {
   /// [SentomaruOfflineError.invalidRequest]; order and gaps are the server's to check.
   Future<Uint8List> reconcileBody({required SentomaruOfflinePermit permit, required List<SentomaruOfflineSeal> seals}) =>
       _call<Uint8List>('offlineReconcileBody', {'permit': permit.json, 'seals': [for (final s in seals) s.fields]});
+}
+
+/// D-26: the verdict of `offline_reconcile` (contract v1.18) as a Dart consumer backend or a test tool reads it. The app itself
+/// never gets this answer (the consumer's backend forwards the request); the reader exists so that every SDK applies the same
+/// rules as the Android `OfflineReconcileOutcome.Verdict`: [signals] only ever holds the three contract codes and an answer that
+/// disagrees with itself (accepted with signals, rejected without) is not a verdict.
+///
+/// [advisories] (additive) is what the verdict could not check, today `offline_boot_unavailable` (since contract v1.19 such a batch is also refused with offline_chain_broken). It is not a signal and never
+/// changes [accepted]. Unknown codes are kept (a newer server may add one), repeats are dropped, at most [maxAdvisories] are
+/// read, and a missing or malformed list reads as empty: it is never a reason to refuse the verdict.
+class SentomaruOfflineVerdict {
+  const SentomaruOfflineVerdict({required this.permitId, required this.accepted, required this.itemCount, required this.signals, required this.advisories});
+
+  final String permitId;
+  final bool accepted;
+  final int itemCount;
+  final List<String> signals;
+  final List<String> advisories;
+
+  static const maxAdvisories = 8;
+  static const _maxAnswerChars = 16 * 1024;
+  static const _signals = {'offline_clock_tampered', 'offline_chain_broken', 'offline_chain_gap_detected'};
+  static final _code = RegExp(r'^[a-z_]{1,64}$');
+  static final _uuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+  /// `null` when the text is not a well-formed verdict.
+  static SentomaruOfflineVerdict? parse(String text) {
+    if (text.length > _maxAnswerChars) return null;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(text);
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map) return null;
+    final id = decoded['permitId'], status = decoded['status'], count = decoded['itemCount'], signals = decoded['signals'];
+    if (id is! String || !_uuid.hasMatch(id) || status is! String || count is! int || count < 0 || count > 9999) return null;
+    if (signals is! List || signals.any((s) => s is! String || !_signals.contains(s))) return null;
+    if (status != 'accepted' && status != 'rejected') return null;
+    if ((status == 'accepted') != signals.isEmpty) return null;
+    return SentomaruOfflineVerdict(
+      permitId: id, accepted: status == 'accepted', itemCount: count, signals: List.unmodifiable(signals.cast<String>()),
+      advisories: _advisories(decoded['advisories']),
+    );
+  }
+
+  static List<String> _advisories(Object? raw) {
+    if (raw is! List || raw.any((c) => c is! String || !_code.hasMatch(c))) return const [];
+    return List.unmodifiable(raw.cast<String>().toSet().take(maxAdvisories));
+  }
 }

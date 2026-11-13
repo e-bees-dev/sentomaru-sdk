@@ -66,6 +66,7 @@ ALLOWED_DETAILS_BY_KIND = {
     "admin.denied": {"app", "env", "method", "org", "permission", "route"},
     "admin.policy_replay.changed": {"enabled", "previousEnabled"},
     "admin.retention.changed": {"affected", "appliedToExisting", "days", "previousDays"},
+    "admin.scope.created": {"packageName"},
     "admin.scope.apple_app.cleared": {"appleAppId", "environment", "previousAppleAppId", "previousEnvironment"},
     "admin.scope.apple_app.set": {"appleAppId", "environment", "previousAppleAppId", "previousEnvironment"},
     "admin.scope.signing_digest.added": {"sha256"},
@@ -80,9 +81,9 @@ ALLOWED_DETAILS_BY_KIND = {
     "device.suspended": {"reasonSha256", "requestedInstallationId", "until"},
     "device.suspension_released": {"reasonSha256", "requestedInstallationId"},
     "evaluation.accepted": set(),
-    "grant.revoked": set(),
+    "grant.revoked": {"reasonSha256"},
     "installation.enrolled": {"predecessor"},
-    "installation.revoked": set(),
+    "installation.revoked": {"reasonSha256"},
     "installation.superseded": set(),
     "platform.entitlement.set": {"enabledAfter", "enabledBefore", "module", "organization", "overageAfter", "overageBefore",
                                  "quotaAfterSha256", "quotaBeforeSha256"},
@@ -90,6 +91,7 @@ ALLOWED_DETAILS_BY_KIND = {
     "platform.trial.extend": {"endsAtAfter", "endsAtBefore", "organization"},
     "platform.trial.set": {"endsAtAfter", "endsAtBefore", "organization", "planAfter", "planBefore"},
     "platform.usage.recorded": {"app", "env", "metric", "module", "occurredAt", "organization", "quantity", "sourceSha256"},
+    "policy.approval_refused": set(),
     "policy.cases.read": {"days", "limit", "rule"},
     "policy.drafted": {"mode", "policyId"},
     "policy.published": {"mode", "policyId"},
@@ -116,6 +118,7 @@ PACK_NOTICE = ("Evidência técnica gerada pelo Sentomaru para apoiar uma avalia
                "cumprimento de norma. Os mapeamentos são rascunho não revisado por responsável regulatório. A lista de lacunas "
                "faz parte do documento.")
 PACK_FRAMEWORKS = ["lgpd-art6", "sentomaru-audit-trail"]
+PACK_REGISTER_STATES = ["draft-not-reviewed", "reviewed-accepted-for-this-catalog-digest", "adjustments-pending"]
 PACK_GAPS = ["play-integrity-observe", "advisory-signals", "build-record-partial", "mappings-draft", "frameworks-absent",
              "rejection-queue-loss"]
 PACK_CONTROL_KEYS = ["line", "framework", "id", "principle", "title", "claim", "limits", "reviewStatus", "evidence"]
@@ -126,7 +129,34 @@ CONTROL_ID = re.compile(r"\A[A-Z]{2,5}(-[IVX]+)?-[0-9]{2}\Z")
 
 
 class Invalid(Exception):
-    pass
+    """The stable code is str(error). `detail` is optional diagnosis, shown only with --explain, never part of the code."""
+
+    def __init__(self, code, detail=None):
+        super().__init__(code)
+        self.detail = detail
+
+
+_NAME = re.compile(r"[A-Za-z][A-Za-z0-9._-]{0,63}")
+
+
+def _names(values):
+    """Names from an untrusted document, for a diagnosis line: only plain identifiers, at most 20, the rest counted."""
+    shown = []
+    for value in values:
+        shown.append(value if isinstance(value, str) and _NAME.fullmatch(value) else "<not-a-name>")
+    more = len(shown) - 20
+    return "[" + ", ".join(shown[:20]) + (f", ... +{more}" if more > 0 else "") + "]"
+
+
+def _diff(label, got, want):
+    """What differs between a list the document declared and the list this verifier expects."""
+    if not isinstance(got, list):
+        return f"{label}: not a list"
+    missing = [x for x in want if x not in got]
+    extra = [x for x in got if x not in want]
+    if missing or extra:
+        return f"{label}: missing={_names(missing)} extra={_names(extra)}"
+    return f"{label}: same members, different order or repetition"
 
 
 def strict_json(raw_bytes, code):
@@ -345,9 +375,11 @@ def verify_export(envelope_bytes, document_bytes, pem_bytes, pin, expectations, 
 
     header = strict_json(raw_lines[0], "header")
     if not isinstance(header, dict) or list(header.keys()) != HEADER_KEYS:
-        raise Invalid("header-shape")
+        raise Invalid("header-shape", _diff("header members", list(header.keys()), HEADER_KEYS) if isinstance(header, dict)
+                      else "header is not a JSON object")
     if header["schemaVersion"] != "1.0.0" or header["kind"] != "sentomaru-audit-export":
-        raise Invalid("header-shape")
+        raise Invalid("header-shape", "schemaVersion and kind must be 1.0.0 and sentomaru-audit-export; got " +
+                      _names([header["schemaVersion"], header["kind"]]))
     if not isinstance(header["exportId"], str) or not UUID_RE.fullmatch(header["exportId"]):
         raise Invalid("header-export-id")
     if not isinstance(header["organization"], str) or not SLUG.fullmatch(header["organization"]) or header["organization"] == "trust":
@@ -376,8 +408,12 @@ def verify_export(envelope_bytes, document_bytes, pem_bytes, pin, expectations, 
                 entry["status"] not in ("complete", "partial") or entry["retentionDays"] != days:
             raise Invalid("header-coverage")
         parse_utc(entry["effectiveFrom"], "header-coverage")
-    if header["excludedClasses"] != EXCLUDED_CLASSES or header["kinds"] != ALL_KINDS:
-        raise Invalid("header-shape")
+    if header["excludedClasses"] != EXCLUDED_CLASSES:
+        raise Invalid("header-shape", _diff("excludedClasses", header["excludedClasses"], EXCLUDED_CLASSES))
+    if header["kinds"] != ALL_KINDS:
+        raise Invalid("header-shape", _diff("kinds", header["kinds"], ALL_KINDS) +
+                      " (the document lacks kinds this verifier knows, or has kinds it does not know: the verifier and the API "
+                      "that signed the document are not the same version)")
 
     if expectations.get("export") is not None and header["exportId"] != expectations["export"]:
         raise Invalid("expect-export")
@@ -476,9 +512,11 @@ def verify_pack(envelope, raw_lines, digest, expectations, mappings_bytes):
     if len(raw_lines) < 3:
         raise Invalid("document-lines")
     header = strict_json(raw_lines[0], "header")
-    if not isinstance(header, dict) or list(header.keys()) != PACK_HEADER_KEYS:
-        raise Invalid("header-shape")
-    if header["schemaVersion"] != "1.0.0" or header["kind"] != "sentomaru-evidence-pack":
+    if not isinstance(header, dict) or list(header.keys()) not in (PACK_HEADER_KEYS, PACK_HEADER_KEYS + ["register"]):
+        raise Invalid("header-shape", _diff("pack header members", list(header.keys()), PACK_HEADER_KEYS + ["register"])
+                      if isinstance(header, dict) else "header is not a JSON object")
+    # 1.0.0 is the header without the review register; 1.1.0 adds the "register" member (E-03) and nothing else.
+    if header["schemaVersion"] != ("1.1.0" if "register" in header else "1.0.0") or header["kind"] != "sentomaru-evidence-pack":
         raise Invalid("header-shape")
     if header["notice"] != PACK_NOTICE:
         raise Invalid("header-notice")
@@ -503,6 +541,21 @@ def verify_pack(envelope, raw_lines, digest, expectations, mappings_bytes):
             mappings["catalogVersion"] != "compliance-mappings-v1" or mappings["status"] != "draft-not-reviewed" or \
             not isinstance(mappings["sha256"], str) or not HEX64.fullmatch(mappings["sha256"]):
         raise Invalid("header-mappings")
+    if "register" in header:
+        register = header["register"]
+        if not isinstance(register, list) or not register or any(
+                not isinstance(r, dict) or list(r.keys()) != ["framework", "state", "catalogSha256", "acceptedOn"] for r in register):
+            raise Invalid("header-register")
+        if [r["framework"] for r in register] != [f for f in frameworks if f in {r["framework"] for r in register}] or \
+                any(r["framework"] not in frameworks for r in register):
+            raise Invalid("header-register")
+        for r in register:
+            if r["state"] not in PACK_REGISTER_STATES or not isinstance(r["catalogSha256"], str) or not HEX64.fullmatch(r["catalogSha256"]):
+                raise Invalid("header-register")
+            accepted = r["acceptedOn"]
+            if (r["state"] == "reviewed-accepted-for-this-catalog-digest") != isinstance(accepted, str) or \
+                    (accepted is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", accepted)):
+                raise Invalid("header-register")
     scopes = header["scopes"]
     if not isinstance(scopes, list) or scopes != sorted(scopes) or len(scopes) != len(set(scopes)) or \
             any(not isinstance(x, str) or not SCOPE_LABEL.fullmatch(x) for x in scopes):
@@ -572,6 +625,8 @@ def verify_pack(envelope, raw_lines, digest, expectations, mappings_bytes):
         "trusted signing time (generatedAt is declared without an external TSA)",
         "that the mappings are right: they are a draft not reviewed by a regulatory reviewer",
     ]
+    if "register" in header:
+        not_verified.append("the review register: its states are declared by the issuer and were not checked against the register or the reviewer's document")
     if mappings_bytes is None:
         not_verified.insert(0, "the controls against the mapping catalog: pass --mappings compliance-mappings-v1.json")
     else:
@@ -629,6 +684,8 @@ def main(argv=None):
     parser.add_argument("--expect-organization", help="expected organization slug")
     parser.add_argument("--expect-from", help="expected window start (ISO-8601 UTC)")
     parser.add_argument("--expect-to", help="expected window end (ISO-8601 UTC)")
+    parser.add_argument("--explain", action="store_true",
+                        help="on audit-export-invalid, add one `audit-export-detail:` line to stderr when the check has one (today: header-shape)")
     parser.add_argument("--mappings", help="evidence pack only: compliance-mappings-v1.json, checked by SHA-256 against the header")
     args = parser.parse_args(argv)
     try:
@@ -650,6 +707,8 @@ def main(argv=None):
             print("verify-unavailable: " + str(error), file=sys.stderr)
             return 2
         print(f"audit-export-invalid: {error}", file=sys.stderr)
+        if args.explain and getattr(error, "detail", None):
+            print(f"audit-export-detail: {error.detail}", file=sys.stderr)
         return 1
     except OSError:
         print("audit-export-invalid: io", file=sys.stderr)

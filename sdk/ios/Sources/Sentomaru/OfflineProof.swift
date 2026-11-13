@@ -235,3 +235,49 @@ public enum OfflineRequests {
         return data
     }
 }
+
+/// D-26: the verdict of `offline_reconcile` (contract v1.18) as a Swift consumer backend or a test tool reads it. The app never
+/// gets this answer (the consumer's backend forwards the request); the reader exists so that every SDK applies the same rules
+/// as the Android `OfflineReconcileOutcome.Verdict`: `signals` only ever holds the three contract codes and an answer that
+/// disagrees with itself (accepted with signals, rejected without) is not a verdict.
+///
+/// `advisories` (additive) is what the verdict could not check, today `offline_boot_unavailable` (since contract v1.19 such a batch is also refused with offline_chain_broken). It is not a signal and never
+/// changes `accepted`. Unknown codes are kept (a newer server may add one), repeats are dropped, at most `maxAdvisories` are
+/// read, and a missing or malformed list reads as empty: it is never a reason to refuse the verdict.
+public struct OfflineVerdict: Equatable, Sendable {
+    public let permitId: String
+    public let accepted: Bool
+    public let itemCount: Int
+    public let signals: [String]
+    public let advisories: [String]
+
+    public static let maxAdvisories = 8
+    private static let maxAnswerBytes = 16 * 1024
+    private static let contractSignals: Set<String> = ["offline_clock_tampered", "offline_chain_broken", "offline_chain_gap_detected"]
+
+    /// `nil` when the data is not a well-formed verdict.
+    public static func parse(_ json: Data) -> OfflineVerdict? {
+        guard json.count <= maxAnswerBytes,
+              let object = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any],
+              let id = object["permitId"] as? String, OfflineChain.uuidBytes(id) != nil,
+              let status = object["status"] as? String, status == "accepted" || status == "rejected",
+              let count = (object["itemCount"] as? NSNumber).flatMap({ number -> Int? in
+                  guard CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue == Double(number.intValue) else { return nil }
+                  return number.intValue
+              }), (0...9999).contains(count),
+              let signals = object["signals"] as? [String], signals.allSatisfy(contractSignals.contains),
+              (status == "accepted") == signals.isEmpty
+        else { return nil }
+        return OfflineVerdict(permitId: id, accepted: status == "accepted", itemCount: count, signals: signals, advisories: advisories(object["advisories"]))
+    }
+
+    private static func advisories(_ raw: Any?) -> [String] {
+        guard let list = raw as? [Any] else { return [] }
+        var seen = Set<String>(), codes: [String] = []
+        for item in list {
+            guard let code = item as? String, (1...64).contains(code.utf8.count), code.utf8.allSatisfy({ ($0 >= 97 && $0 <= 122) || $0 == 95 }) else { return [] }
+            if seen.insert(code).inserted { codes.append(code) }
+        }
+        return Array(codes.prefix(maxAdvisories))
+    }
+}

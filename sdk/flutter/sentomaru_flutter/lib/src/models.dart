@@ -37,6 +37,14 @@ class SentomaruConfig {
   /// [SentomaruClient.reattestIfDue] answers `invalidRequest`. Nothing reattests by itself.
   final SentomaruReattestationConfig? reattestation;
 
+  /// D-F1 (ativação de módulos em cliente novo, Fase F): what the app, not the SDK, declares about its own
+  /// integration — does it actually enforce the policy's recommendation, does it treat the installation response
+  /// (suspend/revoke)? Sent as `sdkModes` at enrollment, purely informational (A-13): the SDK never reads either
+  /// back. `false` by default is deliberate: an app that forgets to set this is a true "not enforcing", the same
+  /// gap the Prontidão (Fase A) exists to catch.
+  final bool declaredEnforce;
+  final bool declaredInstallationResponse;
+
   const SentomaruConfig({
     required this.organization,
     required this.app,
@@ -47,6 +55,8 @@ class SentomaruConfig {
     this.playIntegrityCloudProjectNumber,
     this.renewalUrl,
     this.reattestation,
+    this.declaredEnforce = false,
+    this.declaredInstallationResponse = false,
   });
 
   /// Scope identity string or hash representation.
@@ -66,6 +76,8 @@ class SentomaruConfig {
           'reattestationSubmitUrl': reattestation!.submitUrl,
           'reattestationMinIntervalSeconds': reattestation!.minInterval.inSeconds,
         },
+        'declaredEnforce': declaredEnforce,
+        'declaredInstallationResponse': declaredInstallationResponse,
       };
 
   /// Throws [SentomaruException] with [SentomaruErrorCode.configurationError] when a required field is missing or
@@ -130,6 +142,8 @@ class SentomaruConfig {
                     SentomaruReattestationConfig.defaultMinInterval.inSeconds,
               ),
             ),
+      declaredEnforce: map['declaredEnforce'] as bool? ?? false,
+      declaredInstallationResponse: map['declaredInstallationResponse'] as bool? ?? false,
     );
   }
 }

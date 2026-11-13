@@ -14,13 +14,20 @@ public struct SentomaruConfig: Sendable {
     public let rotationGracePeriod: TimeInterval
     /// J-04r: the consumer's public renewal route; nil = no renewal (a long session ends in `session-expired`).
     public let renewalUrl: String?
+    /// D-F1 (ativação de módulos em cliente novo, Fase F): what the app, not the SDK, declares about its own
+    /// integration — does it actually enforce the policy's recommendation, does it treat the installation response
+    /// (suspend/revoke)? Sent as `sdkModes` at enrollment, purely informational (A-13): the SDK never reads either
+    /// back. `false` by default is deliberate: an app that forgets to set this is a true "not enforcing", the same
+    /// gap the Prontidão (Fase A) exists to catch.
+    public let declaredEnforce: Bool
+    public let declaredInstallationResponse: Bool
 
     /// SHA-256 (hex) of the scope and enrollment URL: names the Keychain record and the key aliases.
     let identity: String
 
     public init(organization: String, app: String, environment: String, allowedHosts: Set<String>,
                 enrollmentUrl: String, rotationGracePeriod: TimeInterval = 7 * 24 * 3600,
-                renewalUrl: String? = nil) throws {
+                renewalUrl: String? = nil, declaredEnforce: Bool = false, declaredInstallationResponse: Bool = false) throws {
         self.organization = organization
         self.app = app
         self.environment = environment
@@ -28,6 +35,8 @@ public struct SentomaruConfig: Sendable {
         self.enrollmentUrl = enrollmentUrl
         self.rotationGracePeriod = rotationGracePeriod
         self.renewalUrl = renewalUrl
+        self.declaredEnforce = declaredEnforce
+        self.declaredInstallationResponse = declaredInstallationResponse
         self.identity = Hashing.hex(Hashing.sha256(Data("\(organization)\n\(app)\n\(environment)\n\(enrollmentUrl)".utf8)))
         guard rotationGracePeriod > 0, !allowedHosts.isEmpty,
               allowedHosts.allSatisfy({ !$0.isEmpty && $0.utf8.allSatisfy { ($0 >= 0x61 && $0 <= 0x7A) || ($0 >= 0x30 && $0 <= 0x39) || $0 == 0x2E || $0 == 0x2D } })

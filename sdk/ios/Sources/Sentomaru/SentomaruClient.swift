@@ -163,7 +163,7 @@ public final class SentomaruClient: @unchecked Sendable {
             do {
                 let spki = try keyCall { try keys.exists(current.alias) ? try keys.publicKey(current.alias) : try keys.generate(current.alias) }
                 let evidence = try await attest(attestationChallenge: challenge.attestationChallenge, spki: spki, record: &current)
-                current.body = try EnrollmentBody.encode(token: challenge.token, publicKey: spki, appAttest: evidence)
+                current.body = try EnrollmentBody.encode(token: challenge.token, publicKey: spki, appAttest: evidence, config: config)
                 current.publicKey = spki
                 current.appAttestKeyId = evidence.keyId
             } catch SentomaruError.unsupported(let capability) {
@@ -233,7 +233,8 @@ public final class SentomaruClient: @unchecked Sendable {
                 }
                 guard proof.count == 64 else { throw SentomaruError.keyUnavailable }
                 let body = try EnrollmentBody.encode(token: challenge.token, publicKey: spki, appAttest: evidence,
-                                                     predecessor: ReenrollmentProof.member(previousInstallation: previous, signature: proof))
+                                                     predecessor: ReenrollmentProof.member(previousInstallation: previous, signature: proof),
+                                                     config: config)
                 pending = PendingRotation(alias: newAlias, challenge: challenge, body: body, publicKey: spki,
                                           appAttestKeyId: evidence.keyId, sent: false)
             } catch {

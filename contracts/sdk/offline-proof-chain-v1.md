@@ -73,8 +73,8 @@ prevHash           32 bytes
 
 - `elapsedNanos` conta desde o boot e inclui sono profundo; zera no reboot. `wallMillis` é o relógio de parede e o usuário pode mudar.
 - `bootCount` identifica o boot. Dentro de um mesmo boot os itens são comparáveis por `elapsed`; entre boots só pelo `wall`.
-- `bootCount` indisponível (`0xFFFFFFFF`) em **todos** os itens: o servidor só aplica a regra de parede (§5, regra 5), devolve `bootCount: "unavailable"` no veredito e acrescenta `"offline_boot_unavailable"` em `advisories` (contrato v1.18). Mistura de disponível e indisponível no mesmo lote é `offline_chain_broken`.
-- **O que "indisponível" custa à prova.** Sem o contador, o servidor não confere a deriva dentro do mesmo boot nem a âncora do primeiro selo do boot (§5, regras 5 e RB-03); resta o recuo do relógio de parede e a janela `[issuedAt, recebido_em]`. Quem escolhe esse caminho é o **cliente**: o `bootCount` está dentro do registro que a chave da instalação assina, então a assinatura prova a origem, não o valor, e um app reempacotado pode assinar "indisponível" à vontade. O sentinela não é exclusivo de uma plataforma: o SDK iOS cai nele só se o `sysctl` do boot falhar e o Android quando `Settings.Global.BOOT_COUNT` não é legível. Não há medição de com que frequência cada plataforma o usa.
+- `bootCount` indisponível (`0xFFFFFFFF`) em **qualquer** item: desde o contrato v1.19 (D-26, 8/11/2026) o servidor **recusa** (fail closed): o veredito é `rejected` com `offline_chain_broken`, seja um selo, todos ou uma mistura com selos legíveis. O veredito continua dizendo `bootCount: "unavailable"` e acrescenta `"offline_boot_unavailable"` em `advisories`, para o consumidor ver o motivo. O aparelho precisa de um permit novo quando voltar a ler o contador (ou reatestar); nada já gravado é reescrito, e uma reconciliação repetida devolve o veredito gravado. Antes da v1.19 (v1.16 a v1.18) o lote sem contador em todos os itens era `accepted` com a só regra de parede; essa regra continua sendo calculada, e o recuo do relógio aparece como `offline_clock_tampered` ao lado do `offline_chain_broken`.
+- **Por que recusa.** Sem o contador, o servidor não confere a deriva dentro do mesmo boot nem a âncora do primeiro selo do boot (§5, regras 5 e RB-03); resta o recuo do relógio de parede e a janela `[issuedAt, recebido_em]`. Quem escolhe esse caminho é o **cliente**: o `bootCount` está dentro do registro que a chave da instalação assina, então a assinatura prova a origem, não o valor, e um app reempacotado pode assinar "indisponível" à vontade. O sentinela não é exclusivo de uma plataforma: o SDK iOS cai nele só se o `sysctl` do boot falhar e o Android quando `Settings.Global.BOOT_COUNT` não é legível. Não há medição de com que frequência cada plataforma o usa.
 
 ## 5. Reconciliação (`reconcile`)
 
@@ -103,11 +103,17 @@ Resposta `200`:
  "items": [{"seq": 0, "operationDigest": "base64url"}], "advisories": []}
 ```
 
-`advisories` (v1.18, aditivo) lista o que o veredito **não pôde conferir**, calculado pelo servidor a partir do `bootCount` gravado, então a primeira resposta e a repetição dizem o mesmo. Hoje há um valor: `offline_boot_unavailable`, quando `bootCount` é `"unavailable"`. **Não é um `signal`**: não muda `status` nem `signals`, de modo que um lote honesto de um aparelho sem contador continua `accepted` (e um lote adulterado sem contador continua `rejected` pelos seus próprios sinais). O consumidor pondera o aviso como quiser (por exemplo, tratar a cadeia como prova mais fraca). Um cliente que ignora `advisories` não é afetado.
+`advisories` (v1.18, aditivo; a semântica do lote sem contador mudou na v1.19, §4) lista o que o veredito **não pôde conferir**, calculado pelo servidor a partir do `bootCount` gravado, então a primeira resposta e a repetição dizem o mesmo. Hoje há um valor: `offline_boot_unavailable`, emitido quando ao menos um selo do lote tinha o contador de boot indisponível (`bootCount` é `"unavailable"` no veredito, inclusive no lote misto, que além disso é `offline_chain_broken`). **Não é um `signal`**: o aviso em si não muda `status` nem `signals`. Desde a v1.19 o lote sem contador é `rejected` pelo `offline_chain_broken` do §4 (na v1.18 um lote honesto sem contador era `accepted`). O consumidor pondera o aviso como quiser (por exemplo, tratar a cadeia como prova mais fraca). Um cliente que ignora `advisories` não é afetado.
 
 `status` é `accepted` só com `signals` vazio; caso contrário `rejected`. **`rejected` não apaga nada**: o veredito e os `signals` ficam registrados; o consumidor decide. O servidor nunca devolve valores do aparelho em `signals` (só os três códigos). Reconciliar de novo um permit já reconciliado devolve `200` com o **veredito gravado** e nunca regrava nem reavalia (o consumidor que perdeu a resposta a recupera repetindo a chamada); o lote repetido não é comparado com o gravado.
 
 Uma repetição depois que os itens foram apagados pela retenção (90 dias) responde `410` `permit-expired`, não uma contagem sem itens (revisão B, RB-09).
+
+### Consulta administrativa
+
+`GET /v1/{org}/{app}/{env}/admin/devices/{id}/offline-reconciliations` exige sessão de operador, `DevicesRead` no escopo exato e direito ao Trust. Retorna até 50 reconciliações concluídas nos últimos 90 dias, em ordem decrescente de data, com `Cache-Control: no-store`. Cada item contém `reconciledAt`, `status` (accepted/rejected), `signals` e `advisories`. Instalação inexistente ou de outro escopo recebe 404. Instalação sem reconciliações nessa janela recebe `[]`.
+
+A consulta reaproveita os resultados persistidos sem alterar a retenção do banco. A resposta omite sementes, assinaturas, itens da cadeia, valores de relógio e identificadores de operação. `offline_boot_unavailable` informa uma verificação indisponível e permanece separado dos sinais de recusa.
 
 ## 6. Veredito para o consumidor
 
@@ -117,8 +123,13 @@ A resposta de `reconciliations` volta ao backend do consumidor, que a repassa ao
 
 - Sem a opção habilitada, tabela indisponível ou erro de gravação: a rota recusa (`403` ou `503`) e **não** deixa o app selar operações sem permit. O app offline simplesmente não tem permit e segue sem a cadeia.
 - A reconciliação nunca altera uma decisão de avaliação existente.
-- Contadores de baixa cardinalidade previstos (`sentomaru_offline_permits_total{result}`, `sentomaru_offline_reconcile_total{status}`, `sentomaru_offline_signal_total{signal}`, nenhum rótulo com valor do aparelho): **não entram na fatia do servidor (D-26b)**; ficam para a telemetria.
-
+- **Contadores** (processo, rótulos fechados, nenhum valor do aparelho, escopo, instalação nem permit como rótulo; cada série sai com zero na primeira leitura de `/metrics`):
+  - `sentomaru_offline_permits_total{result}`, `result` em `issued`, `disabled` (`403 offline-disabled`), `permit-open` (`409`) e `refused` (qualquer outra falha: prova, sessão, limite de taxa, loja).
+  - `sentomaru_offline_reconcile_total{status}`, `status` em `accepted` e `rejected` (só o veredito **gravado nesta chamada**), `repeated` (a repetição que devolve o veredito gravado), `unknown-permit` (`404`), `expired` (`410`) e `refused`.
+  - `sentomaru_offline_signal_total{signal}`, os três códigos de `signals`, uma vez por veredito novo rejeitado; a repetição **não** conta de novo.
+  - `sentomaru_offline_advisory_total{advisory}`, hoje só `offline_boot_unavailable`, uma vez por veredito novo que o carrega (acréscimo a esta seção: é a taxa que a decisão sobre o Índice de Risco espera; não é um `signal`).
+  - Conta-se **uma vez por requisição, depois do resultado da loja** (a loja pode repetir o corpo da transação, então nada é contado dentro dele). Um rótulo fora das listas fechadas é erro de programação, nunca uma série nova.
+  - Estado: os contadores existem no serviço e saem em `/metrics` (as quatro famílias, todas as séries desde zero, `# TYPE … counter`).
 ## 8. Vetores (laboratório)
 
 | Id | Cenário | Esperado |
@@ -126,6 +137,7 @@ A resposta de `reconciliations` volta ao backend do consumidor, que a repassa ao
 | OFF-01 | Três itens, no meio o relógio de parede avança 2 h sem `elapsed` correspondente | `offline_clock_tampered` |
 | OFF-02 | Três itens, o item de `seq` 1 é removido do lote | `offline_chain_gap_detected` e `offline_chain_broken` |
 | OFF-03 | Reboot (`bootCount` +1) entre os itens: (a) relógio correto, (b) relógio de parede recuado 6 h | (a) `accepted`; (b) `offline_clock_tampered` |
+| OFF-04 | `bootCount` `0xFFFFFFFF` (vetores `offline-proof-chain-v1-unavailable-vectors.json`): em todos os selos, com recuo de parede ou mistura com selos legíveis | `rejected` com `offline_chain_broken` nos quatro casos (D-26, v1.19); o recuo de parede traz também `offline_clock_tampered` |
 
 Os vetores de bytes dourados (`contracts/sdk/offline-proof-chain-v1-vectors.json`) são conferidos pelo servidor (`OfflineChain`) e pelo SDK Android (`OfflineProofChainTest`, D-26c). O registro tem 110 bytes. A execução com relógio alterado e reboot **num aparelho** é a prova do SDK (fatia seguinte) e exige autorização para instalar.
 

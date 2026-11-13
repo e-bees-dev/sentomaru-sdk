@@ -18,7 +18,8 @@ object PluginConfig {
     class Invalid : Exception(ERROR_CODE)
 
     fun parse(organization: Any?, app: Any?, environment: Any?, enrollmentUrl: Any?, allowedHosts: Any?,
-        rotationGracePeriodDays: Any?, playIntegrityCloudProjectNumber: Any? = null, renewalUrl: Any? = null): SentomaruConfig {
+        rotationGracePeriodDays: Any?, playIntegrityCloudProjectNumber: Any? = null, renewalUrl: Any? = null,
+        declaredEnforce: Any? = null, declaredInstallationResponse: Any? = null): SentomaruConfig {
         val hosts = (allowedHosts as? List<*>)?.map { it as? String ?: throw Invalid() }?.toSet()
         if (hosts.isNullOrEmpty()) throw Invalid()
         val graceDays = when (rotationGracePeriodDays) {
@@ -41,6 +42,10 @@ object PluginConfig {
                 rotationGracePeriod = Duration.ofDays(graceDays),
                 playIntegrityCloudProjectNumber = cloudProject,
                 renewalUrl = renewalUrl?.let(::text), // J-04r: absent = no renewal (pre-0.9 behaviour)
+                // D-F1: absent = false, the same default as the native SDK (an app that forgets to declare it is
+                // truthfully "not enforcing", not "unknown").
+                declaredEnforce = bool(declaredEnforce),
+                declaredInstallationResponse = bool(declaredInstallationResponse),
             )
         } catch (e: Invalid) {
             throw e
@@ -76,4 +81,10 @@ object PluginConfig {
     }
 
     private fun text(value: Any?): String = (value as? String)?.takeIf { it.isNotBlank() } ?: throw Invalid()
+
+    private fun bool(value: Any?): Boolean = when (value) {
+        null -> false
+        is Boolean -> value
+        else -> throw Invalid()
+    }
 }

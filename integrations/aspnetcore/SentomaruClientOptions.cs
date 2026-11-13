@@ -21,6 +21,18 @@ public sealed class SentomaruClientOptions
     public bool DisabledAcknowledged { get; set; } = false;
 
     /// <summary>
+    /// 4.17.0: adds the end-user <c>message</c> to the refusal body of a blocked operation (<see cref="SentomaruApiError.Message"/>). Off by default: the refusal body is
+    /// a contract the apps already parse and pin, so it stays byte for byte as before until the host turns this on; the apps' SDKs show the same text from the code.
+    /// </summary>
+    public bool IncludeUserMessage { get; set; }
+
+    /// <summary>
+    /// 4.17.0: the host's own end-user text for a blocked operation, per language (<c>pt-BR</c>, <c>en</c>, <c>es</c>). A blank or missing entry keeps the SDK's
+    /// default text (which already says that some critical operations are blocked until approval). Shown in the <c>message</c> member of the refusal body.
+    /// </summary>
+    public Dictionary<string, string> UserMessages { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     /// Public https base URL clients sign against (e.g. https://api.example.com). Used to rebuild @target-uri.
     /// Outside Development either this or <see cref="KnownProxies"/> is required.
     /// </summary>
@@ -111,6 +123,15 @@ public sealed class SentomaruClientOptions
     public string? TokenBindingIdpIssuer { get; set; }
 
     /// <summary>
+    /// 4.13.0 (ativação de módulos, fase E): the consumer's name in the heartbeat (<c>[a-z][a-z0-9-]{0,39}</c>, such as <c>examplebackend</c>). While null the package
+    /// declares nothing, so the Sentomaru Readiness shows the consumer modules as unknown. The declaration is informational and never changes a decision.
+    /// </summary>
+    public string? HeartbeatConsumer { get; set; }
+
+    /// <summary>4.13.0: how often the declaration is sent after the one at start (one minute at least; shorter means one hour). Defaults to one hour.</summary>
+    public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>
     /// Number of retries on 503 Store Unavailable or transient transport failures. Defaults to 2.
     /// </summary>
     public int RetryCount { get; set; } = 2;
@@ -138,6 +159,10 @@ public sealed class SentomaruClientOptions
         if (FailOpen && !isDevelopment)
         {
             errors.Add("Sentomaru:FailOpen=true is only allowed in the Development environment.");
+        }
+        if (HeartbeatConsumer is not null && !System.Text.RegularExpressions.Regex.IsMatch(HeartbeatConsumer, @"\A[a-z][a-z0-9-]{0,39}\z"))
+        {
+            errors.Add("Sentomaru:HeartbeatConsumer must be lowercase letters, digits and hyphens, starting with a letter (40 characters at most).");
         }
         // 4.8.0: HttpClient.Timeout and CancelAfter throw above int.MaxValue ms; nothing here needs minutes.
         if (Timeout > MaxTimeout)

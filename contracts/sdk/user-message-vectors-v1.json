@@ -1,0 +1,184 @@
+{
+ "format": "sdk-user-message-vectors-v1",
+ "note": "Default end-user text of the SDKs for a blocked operation, the locale resolution and the host override. Synthetic; every SDK reads this file.",
+ "key": "critical_operations_blocked",
+ "fallbackLocale": "en",
+ "texts": {
+  "pt-BR": "Algumas operações críticas estão bloqueadas até a aprovação. Tente novamente mais tarde ou fale com o suporte.",
+  "en": "Some critical operations are blocked until approval. Please try again later or contact support.",
+  "es": "Algunas operaciones críticas están bloqueadas hasta su aprobación. Inténtelo de nuevo más tarde o póngase en contacto con el soporte."
+ },
+ "situations": [
+  "attestation_failed",
+  "verification_denied",
+  "challenge",
+  "defer",
+  "unavailable",
+  "enrollment_pending"
+ ],
+ "localeResolution": [
+  {
+   "tag": "pt-BR",
+   "locale": "pt-BR"
+  },
+  {
+   "tag": "pt_BR",
+   "locale": "pt-BR"
+  },
+  {
+   "tag": "pt",
+   "locale": "pt-BR"
+  },
+  {
+   "tag": "pt-PT",
+   "locale": "pt-BR"
+  },
+  {
+   "tag": "PT-br",
+   "locale": "pt-BR"
+  },
+  {
+   "tag": "en",
+   "locale": "en"
+  },
+  {
+   "tag": "en-US",
+   "locale": "en"
+  },
+  {
+   "tag": "es",
+   "locale": "es"
+  },
+  {
+   "tag": "es-AR",
+   "locale": "es"
+  },
+  {
+   "tag": "es_MX",
+   "locale": "es"
+  },
+  {
+   "tag": "fr-FR",
+   "locale": "en"
+  },
+  {
+   "tag": "",
+   "locale": "en"
+  },
+  {
+   "tag": null,
+   "locale": "en"
+  },
+  {
+   "tag": "  ",
+   "locale": "en"
+  },
+  {
+   "tag": "zz",
+   "locale": "en"
+  }
+ ],
+ "overrides": [
+  {
+   "name": "host text replaces the default for its locale",
+   "locale": "es",
+   "overrides": {
+    "es": "Texto del anfitrión."
+   },
+   "expected": "Texto del anfitrión."
+  },
+  {
+   "name": "an override for another locale does not apply",
+   "locale": "pt-BR",
+   "overrides": {
+    "es": "Texto del anfitrión."
+   },
+   "expected": "Algumas operações críticas estão bloqueadas até a aprovação. Tente novamente mais tarde ou fale com o suporte."
+  },
+  {
+   "name": "a blank override falls back to the default",
+   "locale": "en",
+   "overrides": {
+    "en": "   "
+   },
+   "expected": "Some critical operations are blocked until approval. Please try again later or contact support."
+  },
+  {
+   "name": "the override is matched by the resolved locale",
+   "locale": "pt-PT",
+   "overrides": {
+    "pt-BR": "Texto do app."
+   },
+   "expected": "Texto do app."
+  },
+  {
+   "name": "no overrides keeps the default",
+   "locale": "en-GB",
+   "overrides": null,
+   "expected": "Some critical operations are blocked until approval. Please try again later or contact support."
+  }
+ ],
+ "forbiddenInText": [
+  "code",
+  "reason",
+  "status",
+  "attestation",
+  "integrity",
+  "Play Integrity",
+  "App Attest",
+  "root",
+  "jailbreak",
+  "emulator",
+  "detected",
+  "rule",
+  "signal",
+  "score"
+ ],
+ "mobileCodes": {
+  "note": "Stable error codes of the app SDKs (Android, iOS, Flutter, React Native) to the situation they present; null = not a block, the app decides. A code not listed is null.",
+  "map": {
+   "KeyInvalidated": "attestation_failed",
+   "KeyUnavailable": "attestation_failed",
+   "StorageUnavailable": "attestation_failed",
+   "StrongBoxUnavailable": "attestation_failed",
+   "Unsupported:APP_ATTEST": "attestation_failed",
+   "Unsupported:SECURE_ENCLAVE": "attestation_failed",
+   "ServerRejected:INVALID": "attestation_failed",
+   "ServerRejected:REVOKED": "verification_denied",
+   "ServerRejected:SUSPENDED": "verification_denied",
+   "ServerRejected:CONFLICT": "verification_denied",
+   "ServerRejected:EXPIRED": "verification_denied",
+   "ReenrollmentRefused": "verification_denied",
+   "NetworkUnavailable": "unavailable",
+   "ServerRejected:UNAVAILABLE": "unavailable",
+   "ServerRejected:RATE_LIMITED": "unavailable",
+   "RenewalBackoff": "unavailable",
+   "PinningRefused": "unavailable",
+   "NotEnrolled": "enrollment_pending",
+   "EnrollmentRequired": "enrollment_pending",
+   "ChallengeExpired": "enrollment_pending",
+   "Cancelled": null,
+   "NotInitialized": null,
+   "ConfigurationError": null,
+   "NoActivity": null,
+   "BodyTooLarge": null,
+   "HostNotAllowed": null,
+   "SignatureFormat": null,
+   "InvalidRequest:PARAMS": null,
+   "Unknown": null,
+   "SomethingNew": null
+  }
+ },
+ "dotnetCodes": {
+  "note": "Refusal codes of the .NET filter (HTTP body code) to the situation; operation-replayed, caller-context-missing and body-limit carry no message.",
+  "map": {
+   "proof-required": "verification_denied",
+   "integrity-unavailable": "unavailable",
+   "challenge-required": "challenge",
+   "policy-denied": "verification_denied",
+   "operation-replayed": null,
+   "caller-context-missing": null,
+   "body-limit": null
+  }
+ }
+}

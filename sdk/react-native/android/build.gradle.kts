@@ -10,7 +10,7 @@ plugins {
 }
 
 // Same single source as the Flutter plugin (the vendor's test sdk registry check keeps them equal).
-val sentomaruSdkVersion = "0.2.0-rc.3"
+val sentomaruSdkVersion = "0.2.0-rc.4"
 val sentomaruSdkRepo: File = run {
     val override = (findProperty("sentomaru.sdkRepo") as String?) ?: System.getenv("SENTOMARU_SDK_REPO")
     val dir = override?.let { File(it) } ?: File(projectDir, "../../android/build/repo")
@@ -78,6 +78,8 @@ dependencies {
     implementation("br.com.ebees.sentomaru:sdk:$sentomaruSdkVersion")
     implementation("br.com.ebees.sentomaru:signals:$sentomaruSdkVersion")
     implementation("br.com.ebees.sentomaru:core:$sentomaruSdkVersion")
+    // D-14b: the sealed asset reader behind `sealedConfigure`/`sealedLoad`/`sealedString` (SentomaruBridge.SealedReader).
+    implementation("br.com.ebees.sentomaru:sealed:$sentomaruSdkVersion")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // The app provides React Native; compile against the same line the TS layer supports.
     compileOnly("com.facebook.react:react-android:0.76.5")

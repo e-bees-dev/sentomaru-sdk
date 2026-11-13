@@ -50,7 +50,7 @@ class ReenrollmentProofTest {
             .run { initVerify(keys.getValue(alias).public); update(bytes); verify(signature) }
     }
 
-    private val member = Regex(",\"predecessor\":\\{\"installationId\":\"([0-9a-f-]{36})\",\"signature\":\"([A-Za-z0-9+/=]{88})\"}(,\"integrityToken\":\"[^\"]+\")?}$")
+    private val member = Regex(",\"predecessor\":\\{\"installationId\":\"([0-9a-f-]{36})\",\"signature\":\"([A-Za-z0-9+/=]{88})\"}(,\"sdkModes\":\\{[^}]*})?(,\"integrityToken\":\"[^\"]+\")?}$")
 
     /** Same literal as the server test ReenrollmentTests.Message_is_the_documented_canonical_form. */
     @Test fun messageIsTheDocumentedCanonicalForm() {

@@ -114,9 +114,12 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
     // Same SDK artifacts the library module uses (published to sdk/android/build/repo by the SDK build).
-    implementation("br.com.ebees.sentomaru:sdk:0.2.0-rc.3")
-    implementation("br.com.ebees.sentomaru:signals:0.2.0-rc.3")
-    implementation("br.com.ebees.sentomaru:core:0.2.0-rc.3")
+    implementation("br.com.ebees.sentomaru:sdk:0.2.0-rc.4")
+    implementation("br.com.ebees.sentomaru:signals:0.2.0-rc.4")
+    implementation("br.com.ebees.sentomaru:core:0.2.0-rc.4")
+    // D-14b: SentomaruModule.kt's sealed reader (sealedConfigure/sealedLoad/sealedString); same artifact the
+    // standalone library build (sdk/react-native/android/build.gradle.kts) already declares.
+    implementation("br.com.ebees.sentomaru:sealed:0.2.0-rc.4")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     if (hermesEnabled.toBoolean()) {

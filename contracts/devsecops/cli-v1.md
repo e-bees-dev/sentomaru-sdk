@@ -27,7 +27,34 @@ sentomaru protect openbao-certificate --openbao-addr <url> --openbao-role <role>
 sentomaru protect --version [--json]
 sentomaru protect controls [--json]   # controles desta versão: id, versão, etapa, ordem
 sentomaru verify receipt|audit-export [opções do verificador]   # conferência de terceiro do Trust (abaixo)
+sentomaru scope plan|apply|check --manifest <sentomaru-scope.yaml> [--api <url>] [--policy <policy.json>] [--expect <módulo,…>] [--allow-unknown] [--json] [--admin-token-stdin]   # onboarding de escopo (seção "sentomaru scope")
+sentomaru policy study (--scope <org>/<app>/<env> --operations <op,op,...> --sensitive-operations <op,op,...> |
+                         --manifest <sentomaru-scope.yaml>)
+                  [--presence-operations <op,op,...>] [--location-sensitive-operations <op,op,...>]
+                  [--version <v>] [--description <texto>] [--out <path>]   # política de estudo (abaixo)
 ```
+
+- **`sentomaru policy study` (acréscimo, não é parte de `protect`; ativação de módulos em cliente novo, Fase D,
+  spec de 10/11/2026 §8):** monta a política shadow (toda regra em `observe`) que cobre o catálogo de sinais
+  (`contracts/sdk/signals-catalog-v1.json`) e as operações declaradas, do modelo
+  [`contracts/policy/templates/study-v1.json`](../policy/templates/study-v1.json) — nunca um JSON escrito à mão. Sem
+  rede, sem a API do Sentomaru: lê o modelo embutido na própria CLI e escreve em stdout ou em `--out`. `--scope` e
+  `--manifest` são **mutuamente exclusivos** e um dos dois é obrigatório. Com `--scope`, `--operations` e
+  `--sensitive-operations` são obrigatórios (`--sensitive-operations`, uma decisão do negócio, nunca um padrão
+  silencioso) e `--sensitive-operations` precisa ser um subconjunto de `--operations`. Com `--manifest`, organização/app/ambiente
+  e a lista de operações sensíveis vêm de `policy.sensitiveOperations` no manifesto do `sentomaru-scope.yaml` (Fase C;
+  seção "`sentomaru scope`" abaixo); o manifesto precisa declarar
+  `policy.template: study` (qualquer outro valor, ou a ausência da seção `policy`, é erro de uso) e `policy.operations`,
+  se ausente ou vazio, usa a própria lista de sensíveis. Um manifesto malformado sai com **4** (`manifest-format`), igual
+  ao leitor de `sentomaru scope`. Nos dois modos, `--presence-operations`/`--location-sensitive-operations` (para as
+  regras `user_presence`/`fraud_location_mock`) são opcionais e, se omitidos, usam a lista de operações sensíveis — o
+  manifesto não carrega essas duas, só a linha de comando. Saída: **0** gerado; **2** erro de uso (falta um argumento
+  obrigatório, `--scope` e `--manifest` juntos, uma lista vazia, um id de operação fora do formato de slug com `_` opcional,
+  um dos grupos citando uma operação que não está nas operações, ou um manifesto sem `policy`/com `policy.template`
+  diferente de `study`); **4** manifesto malformado. "Pronto" (spec §8): com as listas do ExampleApp prod este comando reproduz
+  `docs/api/examples/policy-exampleapp-prod-estudo-1.0.0.json`, a menos de id, versão e descrição. O resultado, nos dois modos,
+  satisfaz o contrato que `sentomaru scope apply --policy` confere numa política `study` (mesmo escopo; `policyId`/`version`
+  presentes; `enforcementMode: shadow`; `sensitiveOperations` igual ao do manifesto, como conjunto).
 
 - **`sentomaru verify` (acréscimo, não é parte de `protect`):** `receipt` confere um recibo de conclusão
   (o recibo de conclusão assinado do Sentomaru) e `audit-export` confere uma exportação assinada da trilha ou um
@@ -97,13 +124,16 @@ sentomaru verify receipt|audit-export [opções do verificador]   # conferência
   porque um APK sem assinatura não instala); **AAB** sai sem assinatura por padrão, para o cliente assinar com a chave
   de upload (o Play Console exige o AAB assinado com ela) ou assina por `--sign keystore|openbao` (assinatura JAR, a
   do AAB). `--sign openbao`: chave no OpenBao **do cliente**, por identidade federada do CI (D-02b). Opções de
-  assinatura sem `--sign` → `usage`. **APK sem `--sign`** → `usage` (é preciso escolher `keystore`, `openbao` ou
-  `none`). Rotação de chave v3 (linhagem) fica fora da v1.
+  assinatura sem `--sign` → `usage`. **APK sem `--sign`** → `usage` (é preciso escolher `keystore` ou `none`; `openbao` só vale para AAB). Rotação de chave v3 (linhagem) fica fora da v1.
 - **Estado da implementação (G-03e1):** `--sign keystore` assina o **AAB** (assinatura JAR SHA-256 pelo signer do
   JDK; antes do registro a CLI confere, com `JarFile` em verificação, que **todas** as entradas estão assinadas pelo
   mesmo certificado); as senhas vêm só do ambiente: `SENTOMARU_KEYSTORE_PASSWORD` e, se a chave tiver outra,
-  `SENTOMARU_KEY_PASSWORD`. Uma execução real com **APK** de entrada responde `control-failed` (`runtime-injection` só em
-  AAB até a G-03b3). `network-signing` (G-03c) não muda o binário: confere que o app embute o transporte de
+  `SENTOMARU_KEY_PASSWORD`. Uma execução real com **APK** de entrada (G-03b3) aplica `runtime-injection` e `ui-shield`
+  (DEX `classesN.dex` e manifesto binário; saída `<entrada>.protected.apk`, alinhada como o `zipalign` e assinada pelo
+  apksig, v2/v3 habilitados e v1 desligado; a assinatura de entrada é descartada, com o aviso `input-signature-removed`).
+  `--sign openbao` com APK → `usage` (o assinador do OpenBao assina um pacote JAR, não um APK); um controle que ainda só edita
+  AAB (`network-pinning`) responde `control-failed`. **Estado:** código em `main` desde a G-03b3, ainda sem release: a
+  `cli-v0.6.1` publicada executa só AAB. `network-signing` (G-03c) não muda o binário: confere que o app embute o transporte de
   assinatura do SDK e o registra no relatório (ver o controle).
 
 - **`--sign openbao` (G-03e2):** a assinatura JAR SHA-256 do AAB é feita por uma chave **RSA não exportável** do
@@ -243,7 +273,8 @@ com essa seção num app sem o SDK passa a falhar, que é o objetivo do portão.
 `runtime-injection` respondia `planned`, saída 0, para um app que já declara o provider do Sentomaru; só a execução
 real o recusava. Desde a G-06, o `--dry-run` recusa com **5 (`app-incompatible`)**, a mesma resposta da execução real
 de um AAB. Num APK já protegido, a execução real também passa a sair 5 em vez de 6 (`control-failed`, APK não
-suportado), porque a recusa vem antes. Um APK sem proteção continua `planned` no `--dry-run` e 6 na execução real.
+suportado), porque a recusa vem antes. Um APK sem proteção continua `planned` no `--dry-run` e, na execução real, é protegido
+(G-03b3) quando os controles do perfil editam APK; com `network-pinning` sai 6.
 
 Os controles das ondas 2–4 não existem nesta versão: pedidos, dão `control-not-available`; versão de controle que
 esta CLI não tem → `control-version-unsupported`. O `build-obfuscation` (D-08d) saiu do gate na D-08f, o
@@ -346,7 +377,7 @@ validador que afirma `format: date` (como o do portão de política) e, sempre, 
 | `resources.pb` ausente, sem pacote ou com mais de um, pacote com id diferente de `0x7f` ou tabela sem id livre; mais de um tipo `xml`; tipo ou entrada sem id; `resources.pb` acima de 32 MiB (ou sem memória para lê-lo); o app já tem o recurso `xml/sentomaru_network_security_config` (ou o `_debug`, que a plataforma leria como `debug-overrides`) ou a entrada `base/res/xml/sentomaru_network_security_config.xml` | 5 | `app-incompatible` | `resource-table-unsupported` |
 | `resources.pb` que não é um `ResourceTable` legível | 3 | `input-format` | `unreadable resource table` |
 | `android:usesCleartextTraffic` é uma referência a recurso (não um literal que possa ser copiado para o `base-config`) | 5 | `app-incompatible` | `cleartext-attribute-unsupported` |
-| APK de entrada (execução real) | 6 | `control-failed` | a regra atual, até a G-03b3 |
+| APK de entrada com `network-pinning` (execução real) | 6 | `control-failed` | o controle só edita AAB; `runtime-injection` e `ui-shield` editam APK desde a G-03b3 (código em `main`, sem release) |
 | expiração a menos de 30 dias | 0 | — | aviso `network-pinning-expiration-near` |
 | host fixado fora de `network-signing.hosts` (ou sem essa seção) | 0 | — | aviso `network-pinning-host-unsigned` |
 | app Flutter (a classe do plugin no DEX do `base`) | 0 | — | aviso `network-pinning-dart-line` |
@@ -462,7 +493,7 @@ sem mudar a versão do controle (o valor já existe).
 |---|---|---|---|
 | campo desconhecido na seção | 4 | `profile-format` | `build-obfuscation.<campo>` |
 | `version` que esta CLI não tem | 4 | `control-version-unsupported` | `build-obfuscation <versão>` |
-| APK de entrada (execução real) | 6 | `control-failed` | a regra atual, até a G-03b3 |
+| APK de entrada com `network-pinning` (execução real) | 6 | `control-failed` | o controle só edita AAB; `runtime-injection` e `ui-shield` editam APK desde a G-03b3 (código em `main`, sem release) |
 | execução real só com `build-obfuscation` (nada a aplicar) | 6 | `control-failed` | `nothing to apply` |
 | execução de laboratório (`--lab-unregistered`) com a seção | 6 | `control-failed` | `build-obfuscation: not applicable by this build` (como a `network-signing`) |
 | `sdkProbeRenamed` = `false` | 0 | — | aviso `build-obfuscation-sdk-not-renamed` |
@@ -521,7 +552,7 @@ limite por arquivo (abaixo, "Limites"): 1 MiB sem ele, o teto do formato (4 MiB)
 registrada recusa o gate, uma corrida registrada sempre tem o limite de 1 MiB. Sem a seção, o artefato é o de antes,
 byte a byte; no relatório só muda `cli.build` (`0.5.0` desde a D-08f). Num APK, o `--dry-run` confere e planeja com os
 caminhos na raiz do APK (sem `base/`, sem `assets.pb`); a execução real de um APK com a seção responde `control-failed`
-(saída 6, a regra do APK até a G-03b3), **depois** da compatibilidade (um APK que o controle recusa sai 5, por exemplo
+(saída 6, a regra do APK para um controle que só edita AAB, o `network-pinning`), **depois** da compatibilidade (um APK que o controle recusa sai 5, por exemplo
 sem o leitor); com o gate, a execução real sai antes, 2 (`usage`, `lab-gate-registered`).
 
 **Mudança de comportamento na D-14e, ainda CLI 0.5.0 (registrada; a versão do controle segue `"1"`):** a 0.5.0 ainda não tinha sido
@@ -608,7 +639,7 @@ detectáveis sem efeito, como no resto do contrato:
 | | cada arquivo dentro do limite, mas a soma acima de 32 MiB (D-14e: antes vinha com `asset-too-large`) | 5 | `app-incompatible` | `assets-total-too-large` |
 | | JSON de strings que não é UTF-8, não é objeto plano de textos, tem chave fora do padrão ou repetida, ou mais de 1024 entradas | 5 | `app-incompatible` | `strings-invalid` |
 | aviso | sempre que aplicado | 0 | — | `asset-encryption-read-line` (Android e Flutter: o app precisa ler pelo SDK ou pelo plugin) |
-| controles (só a execução real) | APK de entrada | 6 | `control-failed` | a regra atual, até a G-03b3; vem **depois** da compatibilidade, como nos outros controles (um APK que o controle recusa dá 5 também na execução real) |
+| controles (só a execução real) | APK de entrada com controle só de AAB | 6 | `control-failed` | a regra para um controle que só edita AAB (`network-pinning`); vem **depois** da compatibilidade, como nos outros controles (um APK que o controle recusa dá 5 também na execução real) |
 
 A lista de `asset-engine-managed` é uma recusa larga de propósito (conferida no APK de release do exemplo do plugin,
 Flutter 3.41.9, que traz `NativeAssetsManifest.json` na raiz): os assets do app ficam em subdiretórios de
@@ -794,7 +825,9 @@ recusa uma delas ainda recebe as outras. Configuração ilegível deixa o escudo
 **Desvio registrado do desenho inicial (HU-05):** a ficha previa a injeção "em `onCreate` dos alvos no DEX". Esta fatia
 usa o ciclo de vida de atividade no runtime e **não reescreve o DEX do app**: funciona para uma atividade que não define
 `onCreate`, que herda de uma base, ou que o R8 renomeou, e não depende do `DexRoundTrip`. A consequência: as flags entram
-no `onActivityStarted`, depois do `onCreate` e antes do primeiro quadro, não dentro do `onCreate`.
+no `onActivityStarted`, depois do `onCreate` e antes do primeiro quadro, não dentro do `onCreate`. **O dono aceitou o desvio em 2026-11-07**
+(registro interno do G-10): reabrir a injeção no `onCreate` só se uma prova futura mostrar que a janela entre `onCreate` e
+`onActivityStarted` deixa a tela exposta.
 
 **O que `ui-shield` NÃO afirma:** `FLAG_SECURE` não impede câmera externa, hook, leitura de memória nem um dispositivo
 com root; não prova que o app é seguro; só afeta as telas marcadas. **Limite (G10-1):** as chamadas valem para a **janela da
@@ -872,6 +905,69 @@ conteúdo do app além dos nomes e digests listados.
 registrada, o CI do cliente monta o statement `protect-run/v1` com the vendor's protect provenance tool e o assina
 com a chave dele ([protect-run-provenance-v1.md](protect-run-provenance-v1.md)); o relatório de proteção da corrida é o
 `kind: protect-run` de [protection-report-v1.md](../shield/protection-report-v1.md). Nada muda neste contrato.
+
+## `sentomaru scope` (Fase C, acréscimo; não é parte de `protect`)
+
+Contrato do manifesto de onboarding `sentomaru-scope.yaml` (v1) e dos comandos que o leem. Esquema:
+[`scope-manifest-v1.schema.json`](../platform/scope-manifest-v1.schema.json); exemplo:
+[`examples/sentomaru-scope.example.yaml`](../platform/examples/sentomaru-scope.example.yaml) (digests sintéticos). Especificação de origem:
+an internal design note, seção 7.
+
+```text
+sentomaru scope plan  --manifest <sentomaru-scope.yaml> [--api <url>] [--policy <policy.json>] [--json] [--admin-token-stdin]
+sentomaru scope apply --manifest <sentomaru-scope.yaml> [--api <url>] [--policy <policy.json>] [--json] [--admin-token-stdin] [--console <url>]
+sentomaru scope check --manifest <sentomaru-scope.yaml> [--api <url>] [--expect <módulo,...>] [--allow-unknown] [--json] [--admin-token-stdin]
+```
+
+- **Manifesto:** documento **fechado** (chave desconhecida é recusada, então não há onde pôr segredo), lido por um leitor estrito do
+  subconjunto de YAML que o manifesto usa. Âncoras, aliases, tags, blocos `|`/`>`, vários documentos, chave repetida e tabulação são
+  recusados, não adivinhados. Digest SHA-256 é `XX:XX…` com **32 pares** (a CLI converte para os 64 hexadecimais minúsculos da API); o
+  App ID Apple é **sempre montado** de `teamId` + `.` + `bundleId` e um `bundleId` que já começa com o `teamId` é recusado;
+  `attestEnvironment: development` só em escopo `dev`, `lab` ou `hml`. Máximo de 64 KiB.
+- **Credencial:** a sessão de operador do Console, em `SENTOMARU_ADMIN_TOKEN` (64 hexadecimais) ou na primeira linha da entrada padrão
+  com `--admin-token-stdin`; **nunca** em argumento (um `--admin-token` é opção desconhecida, saída 2). A CLI a manda só no cookie
+  `__Host-sentomaru_session` e no cabeçalho `X-Sentomaru-Csrf` derivado dela nas escritas; nenhuma saída, erro ou arquivo a repete.
+  `SENTOMARU_API` (ou `--api`) é https, ou http só em endereço de loopback (teste local). `plan` pede um papel que lê o escopo
+  (`PolicyRead`); `apply` pede **SuperAdmin**, porque as rotas de escrita são `ScopesManage`.
+- **`plan`:** só leitura (`GET /v1/auth/scopes`, `GET …/admin/scope`, `GET …/admin/policies`). Uma linha por item, com a marca `+`
+  (acrescenta), `~` (troca), `=` (já está), `!` (conflito ou bloqueio) e `i` (informativo). `--json` devolve um objeto único com
+  `items[]`. Sai com 0 quando conseguiu ler, mesmo com diferenças ou conflitos.
+- **`apply`:** idempotente, usa só rotas que já existem e, **nesta ordem**: criar o escopo (`POST /v1/{org}/platform/scopes`, só se o
+  operador não o enxerga; o pacote vem de `android.package`; um escopo do mesmo pacote é reaproveitado), `POST …/scope/signing-digests`
+  (`active`, para cada digest que não está ativo), `PUT …/scope/apple-app`, e `POST …/policies` (**rascunho**). Antes de qualquer
+  escrita confere o arquivo da política e recusa se houver conflito ou bloqueio. **Nunca aprova** uma política (a SoD não muda: a
+  aprovação é de outro usuário no Console), **nunca retira** nem remove nada (um digest ativo no servidor que o manifesto não lista só é
+  informado) e **não troca o pacote** de um escopo existente (`scope-conflict`). A saída diz o id do rascunho e onde abri-lo (o link
+  completo só quando `--console` ou `SENTOMARU_CONSOLE_URL` dá a origem do Console).
+- **Política:** `template: file` lê `policy.file` (relativo ao manifesto) ou `--policy`. `template: study` **não** gera o JSON aqui: a
+  política de estudo vem do gerador da Fase D (`sentomaru policy study`) e entra por `--policy`; sem ela o `plan` mostra `!` e o `apply`
+  recusa (`policy-not-generated`) antes de escrever. O arquivo precisa ser do mesmo escopo; uma política `study` precisa ser `shadow` e ter
+  as mesmas `sensitiveOperations` do manifesto. Se `policyId` + `version` já existem no servidor, o item é `=`.
+- **`check`:** só leitura de `GET …/admin/readiness` ([`readiness-v1.md`](../platform/readiness-v1.md); papel `Auditor`, `SecurityOperator` ou
+  `SuperAdmin`) e comparação com o que o manifesto espera. Esperado, com os ids do catálogo `readiness-modules-v1.json`: `android` →
+  `attestation.android`; `ios` → `attestation.ios`; `android.playIntegrity.cloudProjectNumber` → `play_integrity`; `policy` → `policy`;
+  `consumer.expected.mobileGate` → `consumer.gate`; `consumer.expected.fraud` → `fraud`; `app.expected.installationResponse` → `response`;
+  `notifications.telegram` → `notifications`; mais os de `--expect a,b`. Imprime **todos** os módulos (estado, motivos e próximos
+  passos por código; `!` o esperado que não está `ready`, `=` o esperado que está). Saída **0** quando todo módulo esperado está
+  `ready`; **4** `readiness-not-ready` quando algum não está (o `unknown` conta como não pronto, porque o servidor não o vê, a menos
+  que `--allow-unknown`), inclusive um módulo esperado que o catálogo do servidor não tem. Escopo desconhecido (ou servidor sem a rota):
+  `scope-unknown`, saída 4; resposta que não tem a forma do contrato: `readiness-format`, saída 8. A resposta é dado: só se imprimem ids,
+  estados, motivos e códigos de próximo passo em forma fechada (`[a-z][a-z0-9_.]*`); qualquer outro texto é descartado. `--json` devolve
+  `{ scope, mode: "check", ok, stale, expected, failing, missing, modules[] }`. Não chama rota de escrita nem manda CSRF.
+- **Só informativo (sem rota para gravar):** `android.playIntegrity.cloudProjectNumber`, `consumer.expected`, `app.expected` e
+  `notifications.telegram` são lidos e validados e aparecem como `i`; quem os usa é a Prontidão e o `scope check`
+  (`consumer.expected` e `app.expected` só pedem `ready` quando a autodeclaração das fases E/F existe; até lá o módulo sai `unknown`).
+
+| Saída | Códigos | Quando |
+|---|---|---|
+| 0 | — | `plan` leu; `apply` terminou; `check` encontrou todo módulo esperado `ready` |
+| 2 | `usage`, `policy-not-generated` | argumentos; `--api` que não é https/loopback; `apply` de política `study` sem o arquivo |
+| 4 | `manifest-format`, `policy-format`, `scope-conflict`, `scope-unknown`, `readiness-not-ready` | manifesto ou arquivo de política recusado; pacote diferente no servidor; escopo que o manifesto não consegue criar; `check`: escopo desconhecido ou módulo esperado que não está pronto |
+| 5 | `permission-missing`, `scope-not-visible` | a sessão não pode ler ou escrever; o escopo existe mas o operador não o tem |
+| 8 | `credential-missing`, `api-unavailable`, `apply-refused`, `readiness-format` | sem token ou token mal formado ou recusado (401); API inacessível, 429 ou 5xx; uma rota recusou (o `detail` traz o código dela) |
+
+Prova: `ScopeCliTest` (29 testes; servidor de teste em loopback: rotas, ordem, cookie, CSRF, nada de aprovação nem retirada, idempotência, conflito,
+credencial) e `verification/devsecops/test_scope_manifest_schema.py` (esquema e leitor listam as mesmas chaves).
 
 ## Erros e códigos de saída (estáveis)
 

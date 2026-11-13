@@ -752,7 +752,7 @@ v1.10, `reattest` (o app reatesta e o Sentomaru confere; abaixo). O validador re
 com aviso (`client-signal-deny`). A política padrão embutida não usa degraus.
 
 Suba uma regra devagar: `observe` → `enforce` com `challenge` → `enforce` com `deny`, este só sobre sinal verificado
-pelo servidor. O Estúdio de políticas do Console mostra o degrau, o tipo e quantas vezes cada regra casou nas últimas
+pelo servidor. O Policy do Console mostra o degrau, o tipo e quantas vezes cada regra casou nas últimas
 24 h, 7 ou 30 dias (`integrity.policy_rule_count`, um piso: um envio perdido do contador não volta); promover cria a
 versão seguinte do rascunho, que outro operador aprova. O exemplo abaixo é a escada do laboratório
 (`ebees/rasp-lab/hml`): emulador só contado, root declarado pede step-up ao consumidor, identidade do app verificada
@@ -857,7 +857,7 @@ builder.Services.AddSingleton<ISentomaruChallengeHandler, StepUpHandler>();
 
 **Regra do Índice de Risco (D-T1a, contrato v1.13).** Uma política pode recusar a faixa alta do Índice de Risco, por
 escopo e por opção. O modelo `risk-index-v1` **não tem calibração**: os pesos são desenho, e nenhuma taxa de falso
-positivo foi medida. **Comece em `observe`**, olhe a contagem da regra no Estúdio por tempo suficiente e só então
+positivo foi medida. **Comece em `observe`**, olhe a contagem da regra no Policy por tempo suficiente e só então
 considere `enforce`. Sem a condição `riskIndex`, o índice nem é calculado e nada muda, inclusive na política padrão.
 
 <!-- source: docs/api/examples/policy-risk-index-observe-example.json -->
@@ -940,7 +940,7 @@ condição só existe com `challenge` + `reattest`, nunca com `deny` (uma reates
 reempacotamento), é recusada em `prod` (`reattestation-prod`) e fica inerte em instalações iOS e em escopo com a
 reatestação desligada. A publicação recusa N abaixo do intervalo mínimo do escopo
 (`reattestation-age-below-interval`) e a condição num escopo com a reatestação desligada
-(`reattestation-disabled-scope`). O Estúdio mostra o campo só com esse tipo.
+(`reattestation-disabled-scope`). O Policy mostra o campo só com esse tipo.
 
 O adaptador 4.6.0 responde 401 `challenge-required` com `challengeKind: reattest` e **não** chama o
 `ISentomaruChallengeHandler`: quem confere é o Sentomaru, não o consumidor. A 4.5.0 manda o tipo bruto, e a 4.4.0 ou

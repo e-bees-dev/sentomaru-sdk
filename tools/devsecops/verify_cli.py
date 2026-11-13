@@ -13,7 +13,9 @@ The four files are first copied into a private 0700 directory and only that copy
 Checks, in order: tools/shield/verify_release.py (pinned cosign and key, message-signature bundle over the statement,
 strict statement, every file's digest a subject, the signed repository/ref/workflow/version equal to the expected
 ones); the signed buildType is the CLI distribution's (a statement for another product signed with the same key is
-refused); the zip and SHA256SUMS agree. Then the zip is unpacked into a fresh --dest, refusing absolute paths, `..`,
+refused); the signed runner class (item 36: internalParameters.runner) is well formed, and a statement without it is
+reported on stderr as `cli-notice: runner-not-asserted`, never approved in silence (--require-runner refuses it;
+--expect-runner-environment github-hosted|self-hosted refuses another class); the zip and SHA256SUMS agree. Then the zip is unpacked into a fresh --dest, refusing absolute paths, `..`,
 links and anything outside `sentomaru-protect-<v>/`. Prints the path of the `sentomaru` launcher. Exit 1 with
 `cli-invalid: <code>` (or `release-invalid: <code>` from the verifier) on stderr; nothing is unpacked on failure.
 Contract: contracts/devsecops/cli-distribution-v1.md. Stdlib + cosign.
@@ -40,6 +42,40 @@ MAX_UNPACKED = 256 << 20
 
 class Invalid(Exception):
     pass
+
+
+RUNNER_ENVIRONMENTS = ("github-hosted", "self-hosted")
+RUNNER_OS = ("Linux", "macOS", "Windows")
+RUNNER_ARCH = ("X86", "X64", "ARM", "ARM64")
+
+
+def read_runner(build, args):
+    """Item 36: the runner class the signed statement asserts (internalParameters.runner), or None when the statement
+    does not assert one (builds before item 36). A present value must be exactly {environment, os, arch} from the closed
+    tables; --require-runner refuses a statement without it and --expect-runner-environment refuses another class
+    (or a statement that says nothing). It is the packager's claim, signed by the release key: not a third party's."""
+    internal = build.get("internalParameters", {})
+    runner = internal.get("runner") if isinstance(internal, dict) else None
+    if runner is None:
+        if args.require_runner or args.expect_runner_environment:
+            raise Invalid("runner-not-asserted")
+        return None
+    if not isinstance(runner, dict) or set(runner) != {"environment", "os", "arch"} \
+            or runner["environment"] not in RUNNER_ENVIRONMENTS or runner["os"] not in RUNNER_OS \
+            or runner["arch"] not in RUNNER_ARCH:
+        raise Invalid("runner-shape")
+    if args.expect_runner_environment and runner["environment"] != args.expect_runner_environment:
+        raise Invalid("runner-environment")
+    return runner
+
+
+def runner_notice(prefix, runner):
+    """One line on stderr, never on stdout (stdout carries the paths a caller consumes)."""
+    if runner is None:
+        print(f"{prefix}-notice: runner-not-asserted", file=sys.stderr)
+    else:
+        print(f"{prefix}-notice: runner environment={runner['environment']} os={runner['os']} arch={runner['arch']}",
+              file=sys.stderr)
 
 
 def load_verifier():
@@ -133,6 +169,7 @@ def verify(args):
         build = statement.get("predicate", {}).get("buildDefinition", {})
         if build.get("buildType") != BUILD_TYPE:
             raise Invalid("build-type")
+        runner = read_runner(build, args)
         zip_bytes = files[prefix + ".zip"].read_bytes()  # read once; digest and extraction use these bytes
         expected = f"{hashlib.sha256(zip_bytes).hexdigest()}  {prefix}.zip\n"
         if files["SHA256SUMS"].read_text() != expected:
@@ -148,6 +185,7 @@ def verify(args):
         if not launcher.is_file():
             shutil.rmtree(dest, ignore_errors=True)
             raise Invalid("launcher-missing")
+        runner_notice("cli", runner)
         return launcher
     finally:
         shutil.rmtree(work, ignore_errors=True)
@@ -162,6 +200,10 @@ def main(argv=None):
     p.add_argument("--cosign", required=True)
     p.add_argument("--cosign-sha256", required=True)
     p.add_argument("--dest")
+    p.add_argument("--require-runner", action="store_true",
+                   help="refuse a statement that does not assert the runner class (item 36)")
+    p.add_argument("--expect-runner-environment", choices=RUNNER_ENVIRONMENTS,
+                   help="refuse a statement whose signed runner environment differs (or is not asserted)")
     p.add_argument("--expect-repository", default="e-bees-dev/Sentomaru")
     p.add_argument("--expect-ref", default="refs/heads/main")
     p.add_argument("--expect-workflow-path", default=".github/workflows/cli-release.yml")

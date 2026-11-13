@@ -128,4 +128,56 @@ void main() {
       expect(cases, greaterThan(0));
     });
   }
+  group('D-26 verdict reader (contract v1.18)', () {
+    const id = '6F1C0000-0000-4000-8000-00000000D026';
+    String body({String status = 'accepted', String signals = '[]', String? advisories, int count = 1}) =>
+        '{"permitId":"$id","status":"$status","itemCount":$count,"signals":$signals,"bootCount":"unavailable"'
+        '${advisories == null ? '' : ',"advisories":$advisories'}}';
+
+    test('advisories are read without changing the verdict', () {
+      final v = SentomaruOfflineVerdict.parse(body(advisories: '["offline_boot_unavailable"]'))!;
+      expect(v.accepted, isTrue);
+      expect(v.signals, isEmpty); // not a signal: the verdict stands
+      expect(v.advisories, ['offline_boot_unavailable']);
+      expect(v.permitId, id);
+    });
+
+    test('unknown codes are kept and repeats dropped; empty or missing is none', () {
+      expect(SentomaruOfflineVerdict.parse(body(advisories: '["offline_boot_unavailable","future_code","offline_boot_unavailable"]'))!.advisories,
+          ['offline_boot_unavailable', 'future_code']);
+      expect(SentomaruOfflineVerdict.parse(body(advisories: '[]'))!.advisories, isEmpty);
+      expect(SentomaruOfflineVerdict.parse(body())!.advisories, isEmpty); // an older server: no field
+    });
+
+    test('a malformed list reads as none and is never a refusal', () {
+      for (final odd in ['["Bad Code"]', '[1]', '"x"', '{"a":1}', '["${'x' * 65}"]', 'null']) {
+        final v = SentomaruOfflineVerdict.parse(body(advisories: odd));
+        expect(v, isNotNull, reason: odd);
+        expect(v!.advisories, isEmpty, reason: odd);
+        expect(v.accepted, isTrue, reason: odd);
+      }
+    });
+
+    test('at most 8 advisories are read', () {
+      final many = '[${[for (var i = 0; i < 12; i++) '"code_${'abcdefghijkl'[i]}"'].join(',')}]';
+      expect(SentomaruOfflineVerdict.parse(body(advisories: many))!.advisories.length, 8);
+    });
+
+    test('signals stay strict: a code outside the contract, or an answer that contradicts itself, is not a verdict', () {
+      final rejected = body(status: 'rejected', signals: '["offline_clock_tampered"]');
+      expect(SentomaruOfflineVerdict.parse(rejected)!.accepted, isFalse);
+      for (final bad in [
+        rejected.replaceAll('offline_clock_tampered', 'raw_device_value'),
+        rejected.replaceFirst('rejected', 'accepted'),
+        body(status: 'rejected'),
+        body(status: 'pending'),
+        '[]',
+        'not json',
+        body(count: 10000),
+      ]) {
+        expect(SentomaruOfflineVerdict.parse(bad), isNull, reason: bad);
+      }
+      expect(SentomaruOfflineVerdict.parse(body(advisories: '["${'a' * 20000}"]')), isNull); // over the answer cap
+    });
+  });
 }

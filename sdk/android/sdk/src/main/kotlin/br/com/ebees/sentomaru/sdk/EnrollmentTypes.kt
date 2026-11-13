@@ -11,7 +11,7 @@ import java.util.Base64
  * C-04b: [playIntegrityCloudProjectNumber] (Google Cloud project linked to the app in the Play Console) turns on the
  * advisory Play Integrity token at enrollment; null = off. It is not part of the installation identity.
  */
-class SentomaruConfig(val organization: String, val app: String, val environment: String,
+class SentomaruConfig @JvmOverloads constructor(val organization: String, val app: String, val environment: String,
     allowedHosts: Set<String>, val enrollmentUrl: String,
     val rotationGracePeriod: java.time.Duration = java.time.Duration.ofDays(7),
     val playIntegrityCloudProjectNumber: Long? = null,
@@ -20,7 +20,15 @@ class SentomaruConfig(val organization: String, val app: String, val environment
      * renews the grant (10 min on the server) before it expires, signed by the installation key, without a new
      * attestation; null keeps the pre-J-04r behaviour (a long session ends in `session-expired`).
      */
-    val renewalUrl: String? = null) {
+    val renewalUrl: String? = null,
+    /**
+     * D-F1 (ativação de módulos em cliente novo, Fase F): what the app, not the SDK, declares about its own
+     * integration — does it actually enforce the policy's recommendation, does it treat the installation response
+     * (suspend/revoke)? Sent as `sdkModes` at enrollment and at reattestation, purely informational (A-13): the SDK
+     * never reads either back. Defaulting to `false` is deliberate: an app that forgets to set this is a true "not
+     * enforcing", not an "unknown" — the same gap the Prontidão (Fase A) exists to catch.
+     */
+    val declaredEnforce: Boolean = false, val declaredInstallationResponse: Boolean = false) {
     val allowedHosts: Set<String> = allowedHosts.toSet()
     init {
         require(!rotationGracePeriod.isNegative && !rotationGracePeriod.isZero) { "Invalid rotation grace period" }

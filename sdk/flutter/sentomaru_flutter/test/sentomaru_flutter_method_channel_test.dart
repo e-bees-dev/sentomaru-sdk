@@ -54,6 +54,33 @@ void main() {
       expect(receivedArgs!['allowedHosts'], ['api.ebees.com.br']);
       expect(receivedArgs!['rotationGracePeriodDays'], 7);
       expect(receivedArgs!.containsKey('playIntegrityCloudProjectNumber'), isFalse); // C-04b: off by default
+      // D-F1: unlike playIntegrityCloudProjectNumber, always sent — false is itself the declaration, not an absence.
+      expect(receivedArgs!['declaredEnforce'], false);
+      expect(receivedArgs!['declaredInstallationResponse'], false);
+    });
+
+    test('initialize sends the app self-declaration when configured (D-F1)', () async {
+      Map<dynamic, dynamic>? receivedArgs;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initialize') receivedArgs = call.arguments as Map<dynamic, dynamic>;
+        return null;
+      });
+      const config = SentomaruConfig(
+        organization: 'ebees',
+        app: 'example-app',
+        environment: 'prod',
+        enrollmentUrl: 'https://api.ebees.com.br/enroll',
+        allowedHosts: {'api.ebees.com.br'},
+        declaredEnforce: true,
+        declaredInstallationResponse: true,
+      );
+      await platform.initialize(config);
+      expect(receivedArgs!['declaredEnforce'], true);
+      expect(receivedArgs!['declaredInstallationResponse'], true);
+      final roundTripped = SentomaruConfig.fromMap(Map<String, dynamic>.from(config.toMap()));
+      expect(roundTripped.declaredEnforce, true);
+      expect(roundTripped.declaredInstallationResponse, true);
     });
 
     test('initialize sends the Play Integrity project number when configured (C-04b)', () async {

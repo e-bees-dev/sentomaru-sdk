@@ -86,7 +86,7 @@ final class FakeServer: @unchecked Sendable {
             XCTAssertEqual(signed.header("x-sentomaru-operation"), "enroll")
             let challengeId = try XCTUnwrap(signed.header("x-sentomaru-session"))
             let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: signed.body) as? [String: Any])
-            XCTAssertEqual(Set(body.keys).subtracting(["predecessor"]),
+            XCTAssertEqual(Set(body.keys).subtracting(["predecessor", "sdkModes"]),
                            ["challenge", "requiresHardware", "publicKey", "attestationFormat", "appAttest"])
             XCTAssertEqual(body["requiresHardware"] as? Bool, false)
             XCTAssertEqual(body["attestationFormat"] as? String, "apple-app-attest")

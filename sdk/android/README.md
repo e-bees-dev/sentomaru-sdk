@@ -77,6 +77,80 @@ val request = Request.Builder().url(url)
 O interceptor assina `x-sentomaru-signals` (H3) e `x-sentomaru-operation-id` quando presentes, depois dos componentes
 base e nessa ordem; um id malformado é recusado antes do envio (`InvalidRequest:HEADER_VALUE`).
 
+## Garantia de inscrição portátil: `EnrollmentAssurance` (D-W-port)
+
+Decisão de projeto (11/11/2026): a lógica de "garantir a inscrição" que cada app reimplementava (reaproveitar a
+instalação, rotacionar depois de uma atualização do app D-04b/D-04d, reinscrever só quando necessário) passa a
+morar no SDK. `br.com.ebees.sentomaru.sdk.EnrollmentAssurance` é essa lógica, portada de um app consumidor (via o
+port Flutter `sentomaru_flutter`'s `SentomaruEnrollmentAssurance`) para o idioma bloqueante deste módulo (sem
+coroutines): uma thread dedicada carrega a checagem de rotação em segundo plano para que `ensureEnrolled` possa
+desistir de esperá-la sem perder a tentativa; o resto corre na própria thread do chamador, como todo o resto de
+`SentomaruClient`.
+
+```kotlin
+val client = SentomaruClient.initialize(context, config)
+val assurance = EnrollmentAssurance(client, PrincipalStore(context))
+
+val result = assurance.ensureEnrolled(subject, tenant,
+    challengeProvider = { s, t -> myBackend.fetchChallenge(s, t) },
+    grantSender = { signed -> myBackend.sendEnrollment(signed) })
+if (!result.current) return // uma chamada mais nova (outro usuário/tenant) já venceu
+val sessionId = result.sessionId ?: client.sessionId()!! // null = nada mudou, a sessão ativa já é a certa
+```
+
+**O mesmo contrato do port Flutter** (reaproveitar/rotacionar/reinscrever, serialização por "o mais recente vence",
+principal com cópia de reserva, motivos sem dado pessoal, `forgetInstallation`, hook `legacyPrincipal`), com duas
+adaptações deste idioma:
+
+* `challengeProvider`/`grantSender` são DUAS funções, não uma: o `SentomaruClient` deste módulo já exige um `send`
+  separado em `enroll`/`rotate` (o transporte HTTP é sempre do app, nunca do SDK) — `ensureEnrolled` segue a mesma
+  forma em vez de inventar uma camada de rede própria.
+* `onReenrollReason` é um callback (`var`), não um stream: este módulo não depende de coroutines nem de Flow; o
+  resto do SDK já usa callbacks (`SentomaruAppUpdate.onLateGrant` de um app consumidor era o mesmo padrão).
+* Sem equivalente ao guarda de reinstalação do iOS (o Keychain sobrevive à desinstalação; o armazenamento do
+  Android, não).
+
+`PrincipalStore(context)` guarda o principal em `EncryptedSharedPreferences` (Jetpack Security Crypto, nova
+dependência `androidx.security:security-crypto`) com uma cópia de reserva em `SharedPreferences` simples — a
+própria falha que motivou isto (perda da chave do armazenamento criptografado, ou falha na decifragem) sem a cópia
+parecia "outro chamador" e recriava a instalação no servidor a cada perda (evidência em produção: 3 instalações
+vivas do mesmo usuário em 2,5 h). `androidx.security:security-crypto` está descontinuada do lado do fabricante (sem
+substituta com a mesma forma até a data desta escrita); suprimido com `@Suppress`/`@file:Suppress("DEPRECATION")`,
+mesmo espírito do `@Suppress("DEPRECATION")` que `SentomaruClient.appVersionCode` já usava para outra API do
+Android.
+
+**Migrando um app que já tinha essa lógica:** troque a leitura/escrita do seu próprio armazenamento do principal e
+do `sessionId`, e as chamadas diretas a `state()`/`reset()`/`enroll()`/`rotate()`/`reenrollmentReason()` em volta
+disso, por uma instância de `EnrollmentAssurance` e uma chamada a `ensureEnrolled`. Se o app já guardava o
+principal em algum lugar seu, passe `legacyPrincipal` (`() -> String?`) lendo esse valor antigo: consultado só
+quando o armazenamento do próprio SDK estiver vazio e a instalação já estiver `Enrolled`, evita que a troca de
+versão force uma reinscrição de toda instalação existente.
+
+**Provado:** `EnrollmentAssuranceTest` (modelo: `ReenrollmentTest`), JVM, com `InstallationStore`/`InstallationKeys`
+falsos e um `SentomaruKeyValueStore` em memória no lugar de `EncryptedSharedPreferences`/`SharedPreferences` reais —
+todas as decisões acima, concorrência real (threads de verdade, não só coroutines simuladas), timeout e recusa da
+rotação em segundo plano, o hook de migração. **Não provado:** `EncryptedSharedPreferencesStore`/
+`PlainSharedPreferencesStore` reais (precisam de `Context` e Keystore de um aparelho/emulador, não disponíveis
+neste ambiente — mesma categoria de lacuna que o resto do SDK já tem para Keystore real), aparelho real, servidor
+real, e a troca efetiva do app consumidor de referência para esta API.
+
+## Mensagem ao usuário final: `SentomaruUserMessage` (`sdk-user-message-v1`)
+
+Os códigos de erro não mudam; o SDK só acrescenta o texto que o app pode mostrar quando uma operação fica bloqueada. Chave estável `critical_operations_blocked`, em `pt-BR`, `en` e `es`, sem código, motivo nem detalhe de detecção:
+
+```kotlin
+try {
+    client.enroll(challenge, send = ::sendToBackend)
+} catch (e: SentomaruException) {
+    val text = e.userMessage(locale = Locale.getDefault().toLanguageTag())   // null: não é bloqueio, o app decide
+    val custom = e.userMessage("pt-BR", overrides = mapOf("pt-BR" to "Texto do app."))   // sobrescrita por idioma
+}
+```
+
+`pt*` resolve para `pt-BR`, `es*` para `es`, qualquer outro idioma para `en`; texto de sobrescrita vazio é ignorado. Contrato: `contracts/sdk/user-message-v1.md`. Quais códigos são bloqueio (4 situações: `attestation_failed`, `enrollment_pending`, `unavailable`, `verification_denied`): mapa completo em `contracts/sdk/user-message-vectors-v1.json` (`mobileCodes.map`).
+
+`SentomaruException.userMessage(locale, overrides)` e `SentomaruError.userMessage(locale, overrides)` (mesma assinatura do iOS/Flutter/RN) chamam `SentomaruUserMessage.forCode` por baixo; `SentomaruUserMessage.forCode(code, ...)` continua disponível para quem só tem o código solto (ex.: fora de um catch).
+
 ## Versões fixadas
 
 Gradle 9.8.1 (wrapper com `distributionSha256Sum`), Android Gradle Plugin 9.4.1 (Kotlin embutido; KGP 2.2.10, o declarado pelo AGP), JDK 17, compileSdk/targetSdk 36, minSdk 28 (necessário para `setIsStrongBoxBacked`/`StrongBoxUnavailableException`), build-tools 36.0.0. Testes: JUnit 4.13.2, `androidx.test:runner` 1.7.0, `androidx.test.ext:junit` 1.3.0.
@@ -454,12 +528,14 @@ val http = OkHttpClient.Builder().addSentomaru(client, routes, signalEvents).bui
 - C-04b: `com.google.android.play:integrity:1.6.0` no módulo `sdk` (token consultivo do Play Integrity na inscrição,
   ligado por `SentomaruConfig.playIntegrityCloudProjectNumber`; qualquer falha inscreve sem o token). Contrato:
   the Sentomaru Play Integrity API contract.
+- D-W-port: `androidx.security:security-crypto:1.1.0` no módulo `sdk` (armazenamento do principal de
+  `EnrollmentAssurance`, seção acima). Descontinuada do lado do fabricante; suprimida com `@Suppress`.
 
 ## Gates P1 (antes de sair do laboratório)
 
 - Política de autenticação do usuário por operação (substituir `setUserAuthenticationRequired(false)`).
 
-## Chave transacional com presença humana (só Android, sem servidor ainda)
+## Chave transacional com presença humana (Android; o servidor verifica na `main`, sem prova em aparelho)
 
 `SentomaruTransactionSigner` gera uma segunda chave EC P-256 (`<alias da instalação>.tx`) que o Keystore só libera depois de uma autenticação do usuário por uso, e produz o valor de `x-sentomaru-tx-signature`. Contrato: the Sentomaru transaction-keys API contract.
 
@@ -467,7 +543,7 @@ val http = OkHttpClient.Builder().addSentomaru(client, routes, signalEvents).bui
 - O app implementa `TransactionAuthenticator` com o `BiometricPrompt` (`CryptoObject(signature)`), declara `USE_BIOMETRIC` e a dependência `androidx.biometric`; o SDK não traz nenhuma. O prompt roda **fora** do interceptor: `signer.sign(operationId, bodyBytes, authenticator, onSigned = { request.header(...) }, onError = ...)`. No `onAuthenticationError` passe `errorCode` a `BiometricErrors.map(...)`.
 - `TransactionError.Cancelled` e as demais com `recoverable` repetem a chamada sem custo; nada do registro, da chave da instalação ou do grant muda.
 - `enroll(challengeUrl, enrollUrl, send = { signed -> ... })` faz o fluxo todo (desafio, chave nova, envio) pelas rotas do consumidor que repassam à API privada, como a reatestação; recusa do servidor apaga a chave nova. Fora da thread principal.
-- O servidor ainda não verifica nada (fatia b): até lá a API ignora ou recusa o cabeçalho. Sem prova em aparelho.
+- O servidor verifica o cabeçalho (rotas `transaction-keys` e `x-sentomaru-tx-signature`, contrato `transaction-keys-v1`); um servidor sem essa versão ignora ou recusa o cabeçalho. Sem prova em aparelho.
 
 ## Toque injetado em telas marcadas (catálogo 1.11.0)
 

@@ -59,6 +59,70 @@ portas (`InstallationKeys`, `InstallationStore`, `AppAttestService` e o relógio
 | `SentomaruURLSession.signed(_:operation:)`, `.data(for:operation:)` | Assina um `URLRequest`, com o snapshot de sinais em `x-sentomaru-signals` quando criado com `signals:`; reenvia uma vez depois de `403 session-expired` |
 | `SignalsCollector().snapshot(rasp:appIntegrity:)`, `SignalsSnapshot.json()`, `.headerValue()` | Sinais do aparelho no formato do cabeçalho (abaixo) |
 
+## Garantia de inscrição portátil: `EnrollmentAssurance` (D-W-port)
+
+Decisão de projeto (11/11/2026): a lógica de "garantir a inscrição" que cada app reimplementava (reaproveitar a
+instalação, reinscrever só quando necessário) passa a morar no SDK. `EnrollmentAssurance` é essa lógica, portada de
+um app consumidor via os ports Android (`EnrollmentAssurance`) e Flutter (`SentomaruEnrollmentAssurance`).
+
+```swift
+let assurance = EnrollmentAssurance(client: client, principalStore: PrincipalStore())
+
+let result = try await assurance.ensureEnrolled(subject: subject, tenant: tenant,
+    challengeProvider: { s, t in try await myBackend.fetchChallenge(s, t) },
+    grantSender: transport.enroll)
+guard result.current else { return } // uma chamada mais nova (outro sujeito/tenant) já venceu
+let sessionId = try await (result.sessionId ?? client.sessionId()) // nil = nada mudou, a sessão ativa já é a certa
+```
+
+**Sem ramo de rotação.** Os ports Android e Flutter também rotacionam a chave depois de uma atualização do app
+(D-04b/D-04d), guiados por `reenrollmentReason()`. Esse método não existe no iOS (a atestação do App Attest nunca
+leva a versão do app, como o próprio comentário de `SentomaruClient` já documenta): sem sinal para decidir "o app
+atualizou, rotacione agora", `EnrollmentAssurance` aqui só reaproveita ou reinscreve do zero.
+`SentomaruClient.rotate(_:send:)` continua existindo (D-04d) para quem tiver motivo próprio de chamá-lo;
+`ensureEnrolled` nunca o chama. Por isso também não há thread de fundo, timeout nem espera de "settle" aqui, ao
+contrário dos outros dois ports.
+
+**O mesmo contrato dos outros dois ports** (reaproveitar/reinscrever, serialização por "o mais recente vence",
+principal com cópia de reserva, motivos sem dado pessoal, `forgetInstallation`, hook `legacyPrincipal`). `
+PrincipalStore` guarda o principal no mesmo Keychain de proteção de dados que o próprio `SentomaruClient` usa
+(`KeychainItems`, sem dependência nova), com cópia de reserva em `UserDefaults` — diferente do Android, o item do
+Keychain em si não perde a chave de cifra sozinho, mas a cópia ainda protege contra uma falha transitória de
+leitura (`errSecInteractionNotAllowed` antes do primeiro desbloqueio) sem resetar uma instalação perfeitamente boa.
+
+**Reinstalação no iOS:** desinstalar não apaga o Keychain (seção "Keychain" abaixo). `EnrollmentAssurance` resolve
+isso por conta própria com um marcador em `UserDefaults` (que a desinstalação apaga): ausente, apaga o principal e
+chama `reset()` antes de decidir qualquer coisa.
+
+**Migrando um app que já tinha essa lógica:** troque a leitura/escrita do seu próprio armazenamento do principal e
+do `sessionId`, e as chamadas diretas a `state()`/`reset()`/`enroll()` em volta disso, por uma instância de
+`EnrollmentAssurance` e uma chamada a `ensureEnrolled`. Se o app já guardava o principal em algum lugar seu, passe
+`legacyPrincipal` lendo esse valor antigo: consultado só quando o armazenamento do próprio SDK estiver vazio e a
+instalação já estiver `.enrolled`, evita que a troca de versão force uma reinscrição de toda instalação existente.
+
+**Provado:** `EnrollmentAssuranceTests` (modelo: `ClientFlowTests`/`KeychainTests`), com fakes (`SoftwareKeys`,
+`FakeAppAttest`, `MemoryStore`) e um `PrincipalStore` real sob um Keychain de arquivo descartável no macOS — todas
+as decisões acima, concorrência real (`Task`), o hook de migração, o guarda de reinstalação. **Não provado:**
+iPhone real, App Attest real, servidor real, e a troca efetiva do app consumidor de referência para esta API.
+
+## Mensagem ao usuário quando a operação é bloqueada (`SentomaruUserMessage`)
+
+O SDK devolvia só códigos. `SentomaruUserMessage` (contrato `contracts/sdk/user-message-v1.md`) traz um texto padrão curto em pt-BR, en e es
+("Algumas operações críticas estão bloqueadas até a aprovação…"), chave estável `critical_operations_blocked`, igual para toda situação e sem código,
+motivo nem detalhe de detecção. Os códigos de `SentomaruError` e a semântica não mudam.
+
+```swift
+// erro do SDK: nil quando o código não é bloqueio (cancelled, invalidRequest, ...); o app decide o que mostrar
+let text = error.userMessage()                                   // idioma do aparelho
+let own = error.userMessage(locale: "es", overrides: ["es": "…"]) // o host sobrescreve por idioma resolvido (pt-BR, en, es)
+// resposta do backend (challenge, defer, negado): SentomaruUserMessage.resolve(.challenge)
+```
+
+Idioma: `pt*` vira pt-BR, `es*` vira es, o resto `en`. Sobrescrita vazia é ignorada. Quais códigos são bloqueio (4 situações: `attestation_failed`, `enrollment_pending`, `unavailable`, `verification_denied`): mapa completo em `contracts/sdk/user-message-vectors-v1.json` (`mobileCodes.map`).
+**Provado:** `UserMessageTests` contra o vetor
+`contracts/sdk/user-message-vectors-v1.json` (inclui `testSentomaruErrorAccessorKeepsTheCodeAndOnlyAddsTheMessage`, com erros reais lançados/capturados, não só códigos soltos). `OfflineError` e `TransactionError` não ganharam acessor (erros locais de selo e de chave transacional, fora
+do mapa do contrato).
+
 ## Chave da requisição: só Secure Enclave
 
 A chave P-256 da instalação é criada no Secure Enclave (`SecureEnclave.P256.Signing.PrivateKey`, CryptoKit). O
@@ -228,5 +292,5 @@ nunca um selo; a falha de gravação do estado não consome número de sequênci
 
 **O que o iOS expõe, e o limite:**
 - Relógio monotônico: `CLOCK_MONOTONIC` (`mach_continuous_time`: conta o sono, recomeça no boot). É ajustado pelo NTP (partes em 10^4), muito abaixo da tolerância de deriva do permit.
-- Contador de boot: o iOS **não tem** equivalente público ao `BOOT_COUNT` do Android. O SDK lê o `sysctl kern.bootsessionuuid` (UUID novo a cada boot, independente do relógio de parede) e o converte num contador que ele mesmo guarda no Keychain (`ThisDeviceOnly`). O contador conta os boots **vistos pelo SDK**: dois boots sem nenhum selo no meio contam como um (só o crescimento importa ao servidor). Sem o sysctl, todos os selos levam `0xFFFFFFFF` (indisponível) e o servidor só aplica a regra de parede; trocar de disponível para indisponível no meio de um permit é `OfflineError.clockUnavailable`.
+- Contador de boot: o iOS **não tem** equivalente público ao `BOOT_COUNT` do Android. O SDK lê o `sysctl kern.bootsessionuuid` (UUID novo a cada boot, independente do relógio de parede) e o converte num contador que ele mesmo guarda no Keychain (`ThisDeviceOnly`). O contador conta os boots **vistos pelo SDK**: dois boots sem nenhum selo no meio contam como um (só o crescimento importa ao servidor). Sem o sysctl, todos os selos levam `0xFFFFFFFF` (indisponível) e, desde o contrato v1.19 (D-26, 8/11/2026), o servidor **recusa** a cadeia (`offline_chain_broken`): é preciso um permit novo quando o contador voltar a ser legível; trocar de disponível para indisponível no meio de um permit é `OfflineError.clockUnavailable`.
 - Não provado em aparelho: o `sysctl` num iPhone real, o contador de boot após um reinício real e o relógio de parede alterado pela pessoa. Os testes usam relógio e chave de software, e o `sysctl`/`CLOCK_MONOTONIC` só foram exercitados no Mac. A cadeia não prova que o conteúdo é verdadeiro e não protege a cauda (contrato, seção 1).

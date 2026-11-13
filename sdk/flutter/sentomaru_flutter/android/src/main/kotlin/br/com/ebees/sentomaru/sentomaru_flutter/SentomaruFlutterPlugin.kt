@@ -96,6 +96,9 @@ class SentomaruFlutterPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         sealed?.takeIf { it.handles(call.method) }?.let { return it.onMethodCall(call, result) }
+        // The plugin has its own sealed reader; once it is released (detach) the sealed methods must not fall through
+        // to the shared bridge core, which also answers them since D-14b and replies on the main looper.
+        if (call.method in SentomaruFlutterSealed.METHODS) return result.notImplemented()
         offline?.takeIf { it.handles(call.method) }?.let { return it.onMethodCall(call, result) }
         transaction?.takeIf { it.handles(call.method) }?.let { return it.onMethodCall(call, result) }
         if (call.method == "scaffoldInfo") return result.success("sentomaru_flutter:0.0.1")

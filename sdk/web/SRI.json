@@ -1,0 +1,12 @@
+{
+  "schema": "sentomaru-web-sri/1",
+  "note": "Subresource Integrity of the file each version ships (dist/sentomaru-web-signer.mjs, identical to sentomaru-web-signer.mjs). An entry is added with its release and never edited afterwards. Checked by `npm run check:sri`.",
+  "versions": {
+    "0.1.0": {
+      "sentomaru-web-signer.mjs": "sha384-CjxmAICNDLg5Gc+7Ze3k2nCSsutPKjvVlz8vDTidsEWsKeL0wbZNqZ+sIWaIdfYw"
+    },
+    "0.2.0": {
+      "sentomaru-web-signer.mjs": "sha384-D1qBf59ouISR/XKlmqq1rtnfVebqFtVd0eAo1UD0VW21Gy4Kp7WI80AQR8Y9Ka9w"
+    }
+  }
+}

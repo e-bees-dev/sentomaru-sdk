@@ -1,3 +1,28 @@
+## 0.20.0-rc.4 (candidato)
+
+SDK Android `0.2.0-rc.4`. Traz a autodeclaração do app (`SentomaruConfig.declaredEnforce` e
+`declaredInstallationResponse`, enviados como `sdkModes` na inscrição, só informativos: o servidor nunca autoriza nada
+com base nisso) e a API abaixo. A numeração segue a série 0.20.0.
+
+Mudança de acréscimo: nenhuma API existente foi removida nem mudou de assinatura; quem não chama a API nova não
+precisa alterar nada, exceto adicionar as duas dependências novas do pubspec (abaixo) na resolução do seu próprio
+app. Lida e testada no repositório (`test/enrollment_assurance_test.dart`, canal de plataforma e armazenamento
+seguro falsos); não testada em aparelho, contra servidor real nem pela troca efetiva de um app para esta API.
+
+**Novo no plugin**
+
+* `SentomaruEnrollmentAssurance` (D-W-port, decisão de projeto de 11/11/2026): API de alto nível que decide, por
+  conta própria, reaproveitar a instalação, rotacionar a chave depois de uma atualização do app (D-04b/D-04d) ou
+  reinscrever do zero — portada de `sentomaru_service.dart`/`sentomaru_app_update.dart` de um app consumidor, generalizada
+  por um `SentomaruChallengeProvider` em vez de um `Dio`/endpoint fixo. Serializa chamadas concorrentes (a mais
+  recente vence), guarda o principal por conta própria com cópia de reserva contra perda do armazenamento
+  criptografado (`SentomaruPrincipalStore`), resolve por conta própria a reinstalação no iOS (antes
+  responsabilidade do app, ver seção "iOS" do README), emite `reenrollReasons` sem dado pessoal, e tem
+  `forgetInstallation()`. Detalhes, exemplo e guia de migração: README.md, "Garantia de inscrição portátil".
+* Duas dependências novas do pubspec: `flutter_secure_storage` (armazenamento do principal) e
+  `shared_preferences` (cópia de reserva e marcador de reinstalação do iOS) — ambas sem código nativo próprio
+  deste plugin, mesmas plataformas já suportadas.
+
 ## 0.20.0-rc.3 (candidato)
 
 Mesmo código da `0.20.0-rc.2`, com o SDK Android `0.2.0-rc.3`. O que muda é o que acompanha o release: o `verify_sdk.py` publicado exige

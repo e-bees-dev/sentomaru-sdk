@@ -93,6 +93,9 @@ public sealed class SentomaruIntegrityAttribute : Attribute, IAsyncActionFilter
     public const string OperationIdItem = "sentomaru-operation-id";
     public const string FirstAdmissionItem = "sentomaru-first-admission";
 
+    /// <summary>4.14.0: HttpContext.Items key with the operation name of the route this filter protected (a string from the route's own declaration, never from the request).</summary>
+    public const string OperationItem = "sentomaru-operation";
+
     /// <summary>
     /// 4.4.0 (resposta por instalação, tarefa 6): HttpContext.Items key with the <see cref="SentomaruObservation"/> of
     /// the evaluation this filter made (Observe and ZeroTrust). A consumer filter that runs after this attribute reads it

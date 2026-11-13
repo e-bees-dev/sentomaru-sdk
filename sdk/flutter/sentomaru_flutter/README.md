@@ -8,6 +8,93 @@ Plugin Flutter do Sentomaru para Android e, desde 0.18.0, iOS: assinatura RFC 94
 > Sentomaru.AspNetCore 4.x recusa com 403 `caller-context-missing` um chamador que a sessão não identifica (guia de
 > integração, `docs/api/INTEGRATION_GUIDE.md` §3; issues #142 e #143).
 
+## Garantia de inscrição portátil: `ensureEnrolled` (0.21.0, D-W-port)
+
+Decisão de projeto (11/11/2026): a lógica de "garantir a inscrição" que cada app reimplementava (reaproveitar a
+instalação, rotacionar depois de uma atualização do app, reinscrever só quando necessário) passa a morar no SDK.
+`SentomaruEnrollmentAssurance` é essa lógica, portada de um app consumidor (`sentomaru_service.dart`,
+`sentomaru_app_update.dart`) e generalizada: em vez de um `Dio`/endpoint fixos, o app passa um
+`SentomaruChallengeProvider` (`Future<EnrollmentChallenge> Function(String subject, String tenant)`) que busca um
+desafio novo no próprio backend.
+
+```dart
+final client = SentomaruClient();
+await client.initialize(config); // continua sendo o primeiro passo do app, como hoje
+final assurance = SentomaruEnrollmentAssurance(client: client);
+
+final result = await assurance.ensureEnrolled(
+  subject: user.id,
+  tenant: user.tenantId,
+  challengeProvider: (subject, tenant) => myBackend.fetchSentomaruChallenge(subject, tenant),
+);
+if (!result.current) return; // uma chamada mais nova (outro usuário/tenant) já venceu; não vincule nada com esta
+final sessionId = result.sessionId ?? await client.sessionId(); // null = nada mudou, a sessão ativa já é a certa
+```
+
+**O que `ensureEnrolled` decide por conta própria**, sem o app reimplementar nada disso:
+
+* **Reaproveita** a instalação quando o plugin diz `enrolled` **e** o principal guardado (hash de
+  `subject\u0000tenant`, nunca o dado em claro) bate com o chamador atual.
+* **Rotaciona** a chave em vez de reinscrever quando o app foi atualizado (D-04b/D-04d): mesma instalação no
+  servidor (código, nome, tags, suspensão preservados). Se o servidor recusar a rotação
+  (`reenrollmentRefused`), reinscreve do zero com um desafio novo — nunca reaproveita o desafio recusado.
+  Qualquer outra falha na checagem de atualização só é ignorada: a chave atual continua assinando e a próxima
+  chamada tenta de novo.
+* **Reinscreve** (`reset` + `enroll`) nos demais casos: sem inscrição, chave invalidada pela plataforma,
+  principal ausente (instalação de antes deste contrato) ou de outro sujeito/tenant. O desafio é pedido **antes**
+  do `reset`: uma falha de rede não apaga uma inscrição que ainda vale.
+* **Serializa chamadas concorrentes** — login seguido de troca de usuário/tenant nunca inscreve o chamador antigo
+  por cima do novo (`result.current == false` para quem perdeu).
+* **Guarda o principal por conta própria** (`SentomaruPrincipalStore`, Keychain/Keystore via
+  `flutter_secure_storage` com uma cópia de reserva em `SharedPreferences`): no Android o armazenamento
+  criptografado pode perder a chave ou falhar na decifragem, e sem a cópia isso parecia "outro chamador" e
+  recriava a instalação no servidor a cada perda (o bug ported: 3 instalações vivas do mesmo usuário em 2,5 h em
+  produção). A cópia nunca autoriza nada por si: só vale junto com o plugin também dizendo `enrolled`. **O app não
+  guarda mais nada:** nem o principal, nem o `sessionId` (já é nativo — chame `client.sessionId()`).
+* **Esquece a reinstalação no iOS** por conta própria (antes disto era responsabilidade do app, documentada aqui
+  mesmo): a cada chamada confere um marcador em `SharedPreferences` e, ausente, apaga o principal e chama
+  `reset()` antes de decidir — sem isso o Keychain sobrevivendo à desinstalação faria o app achar que uma
+  instalação (e a chave do App Attest) antiga ainda vale.
+* `reenrollReasons` (`Stream<SentomaruReenrollReason>`): um evento a cada inscrição ou reinscrição (nunca num
+  simples reaproveitamento), sem sujeito, tenant nem qualquer dado pessoal — seguro para log ou métrica.
+* `forgetInstallation()`: a instalação foi revogada no servidor (ou é um "sair de todos os aparelhos" do próprio
+  app); a próxima `ensureEnrolled` inscreve do zero, com atestação nova.
+
+**Migrando um app que já tinha essa lógica (como um app consumidor):** troque a leitura/escrita do seu próprio
+armazenamento do principal e do `sessionId`, e as chamadas diretas a `state()`/`reset()`/`enroll()`/`rotate()`/
+`reenrollmentReason()` em volta disso, por uma instância de `SentomaruEnrollmentAssurance` e uma chamada a
+`ensureEnrolled`. Se o app já guardava o principal em algum lugar seu (como esse app guardava), passe
+`legacyPrincipal` (`Future<String?> Function()`) lendo esse valor antigo: consultado só quando o armazenamento do
+próprio SDK estiver vazio e a instalação já estiver `enrolled`, evita que a troca de versão force uma reinscrição
+de toda instalação existente. Sem isso, a primeira chamada depois de atualizar o SDK reinscreve uma vez (custo
+único, não repetido).
+
+**Fora do alcance desta versão** (decisão de não fazer, não lacuna descoberta depois): o gate de hardware ausente
+que alguns apps checavam antes de gastar um desafio em rede (iOS sem App Attest) — `enroll`/`rotate` já recusam
+nativamente com `SentomaruErrorCode.unsupported` sem criar nem enviar nada, então o único custo de não portar esse
+atalho é um desafio de rede a mais num aparelho que de qualquer forma nunca vai inscrever; o gancho
+`onEnrollmentRequired` que alguns apps ligavam a `sign`/`renewSession` para disparar uma reinscrição assim que o
+servidor exige uma (continua sendo o app que decide quando chamar `ensureEnrolled`, este contrato só decide o que
+fazer quando chamado); e qualquer telemetria de "aparelho suportado" (específica de cada app).
+
+**Provado:** `test/enrollment_assurance_test.dart`, com um canal de plataforma falso (`SentomaruFlutterPlatform`)
+e armazenamento seguro falso — todas as decisões acima, concorrência, timeout da rotação em segundo plano,
+recusa de rotação, o gancho de migração e o guarda do iOS. **Não provado:** aparelho real, servidor real, e a
+troca efetiva de um app para esta API (fora deste SDK).
+
+## Mensagem ao usuário final: `SentomaruUserMessage` (`sdk-user-message-v1`)
+
+Os códigos de erro não mudam; o plugin só acrescenta o texto que o app pode mostrar quando uma operação fica bloqueada: chave `critical_operations_blocked`, em `pt-BR`, `en` e `es`, sem código, motivo nem detalhe de detecção.
+
+```dart
+try { await sentomaru.renewSession(); } on SentomaruException catch (e) {
+  final text = e.userMessage(locale: 'pt-BR');                          // null: não é bloqueio, o app decide
+  final custom = e.userMessage(locale: 'en', overrides: {'en': 'App text.'});   // sobrescrita por idioma
+}
+```
+
+`pt*` resolve para `pt-BR`, `es*` para `es`, qualquer outro idioma para `en`; texto de sobrescrita vazio é ignorado. Contrato: `contracts/sdk/user-message-v1.md`. Quais códigos são bloqueio (4 situações: `attestation_failed`, `enrollment_pending`, `unavailable`, `verification_denied`): mapa completo em `contracts/sdk/user-message-vectors-v1.json` (`mobileCodes.map`).
+
 ## iOS (0.18.0; sinais desde 0.19.0; sem prova em aparelho)
 
 O lado iOS responde o mesmo canal `sentomaru_flutter` que o Android, sobre o SDK Swift de `sdk/ios`: a mesma
@@ -45,8 +132,10 @@ Flutter cai no CocoaPods para plugin sem `Package.swift`, o que não foi testado
 | argumento de tipo errado no canal (corpo que não é bytes, expiração não numérica) | `invalidRequest` (`InvalidRequest:PARAMS`); no Android, `channelError`. Só acontece com chamada direta ao canal, não pela API Dart |
 | ordem das chamadas | uma fila por engine, na ordem de chegada, uma de cada vez (como o executor do Android): `sign` renova e assina sem nada no meio; de dois `initialize` aceitos, vale o último. Respondem na hora, antes das chamadas já na fila: `ConfigurationError` da validação dos argumentos de `initialize`, `scaffoldInfo` e método não implementado; `collectSignals` e `collectSignalsSnapshot` rodam fora da fila e da thread principal (não leem estado do cliente) |
 
-Desinstalar o app não apaga o Keychain no iOS: reinstalado, o app pode achar a instalação anterior. Para começar do
-zero, chame `reset()` na primeira execução (marcador em `SharedPreferences`/`UserDefaults`, que a desinstalação apaga).
+Desinstalar o app não apaga o Keychain no iOS: reinstalado, o app pode achar a instalação anterior. Usando
+`SentomaruEnrollmentAssurance` (0.21.0, acima) isto já é tratado por conta própria. Chamando `enroll`/`reset` direto
+(sem `ensureEnrolled`), continua sendo responsabilidade do app: chame `reset()` na primeira execução (marcador em
+`SharedPreferences`/`UserDefaults`, que a desinstalação apaga).
 
 **Provado:** testes do lado iOS no simulador (`sample/ios/RunnerTests`, cliente do SDK com chaves em software, App
 Attest e servidor falsos), testes Dart e `flutter build ios --no-codesign` do `sample/`. **Não provado:** iPhone,
@@ -98,7 +187,7 @@ que traz o `<queries>` dos gerenciadores de root), então o manifesto mesclado d
 
 ```kotlin
 // android/app/build.gradle.kts
-dependencies { implementation("br.com.ebees.sentomaru:signals-rasp:0.2.0-rc.3") }
+dependencies { implementation("br.com.ebees.sentomaru:signals-rasp:0.2.0-rc.4") }
 ```
 
 Sem ele a checagem não roda e `root_artifacts` nunca dá `NOT_DETECTED` (`UNKNOWN` com `partial=root_package`, ou

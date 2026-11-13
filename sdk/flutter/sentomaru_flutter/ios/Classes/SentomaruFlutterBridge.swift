@@ -387,10 +387,20 @@ final class SentomaruFlutterBridge: @unchecked Sendable {
         case nil, is NSNull: renewalUrl = nil
         default: renewalUrl = try text("renewalUrl")
         }
+        // D-F1: absent = false, the same default as the native SDK.
+        func bool(_ key: String) throws -> Bool {
+            switch args[key] {
+            case nil, is NSNull: return false
+            case let flag as Bool: return flag
+            default: throw Invalid()
+            }
+        }
         do {
             return try SentomaruConfig(organization: text("organization"), app: text("app"), environment: text("environment"),
                                        allowedHosts: hosts, enrollmentUrl: text("enrollmentUrl"),
-                                       rotationGracePeriod: TimeInterval(graceDays) * 24 * 3600, renewalUrl: renewalUrl)
+                                       rotationGracePeriod: TimeInterval(graceDays) * 24 * 3600, renewalUrl: renewalUrl,
+                                       declaredEnforce: try bool("declaredEnforce"),
+                                       declaredInstallationResponse: try bool("declaredInstallationResponse"))
         } catch is Invalid {
             throw Invalid()
         } catch {

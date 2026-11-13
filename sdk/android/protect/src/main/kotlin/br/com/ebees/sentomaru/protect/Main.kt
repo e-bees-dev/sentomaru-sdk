@@ -21,8 +21,9 @@ object Cli {
     // in Controls.all too, still 0.5.0 because the release cli-v0.5.0 is still to be published
     // (contracts/devsecops/cli-distribution-v1.md). D-16-lab-gate: SENTOMARU_LAB=1 refused in a registered run, still 0.5.0.
     // D-14e: asset-encryption in Controls.all too, still 0.5.0 (cli-v0.5.0 still to be published).
-    // G-10c: 0.6.0, ui-shield in Controls.all (`controls --json` lists six); cli-v0.6.0 is still to be published.
-    const val BUILD = "0.6.0"
+    // G-10c: 0.6.0, ui-shield in Controls.all (`controls --json` lists six); cli-v0.6.0 was published on 8/11/2026.
+    // 0.6.1 (prepared, not published): the same controls; only the client verifier changed (item 36: it reads the signed runner class).
+    const val BUILD = "0.6.1"
     /** D-16-lab-gate: the stable `detail` of the `usage` refusal of SENTOMARU_LAB=1 in a registered run (cli-v1.md). */
     const val LAB_GATE_REGISTERED = "lab-gate-registered: SENTOMARU_LAB=1 needs --lab-unregistered"
     // The injected runtime (:protect-runtime). G-03b2 ships the init runtime only; the SDK client joins with G-03c.
@@ -35,6 +36,8 @@ object Cli {
         err: (String) -> Unit = { System.err.println(it) }): Int {
         if (args.firstOrNull() == "protect") return run(args.drop(1), env, out, err)
         if (args.firstOrNull() == "verify") return Verify.run(args.drop(1), env, out, err)
+        if (args.firstOrNull() == "scope") return ScopeCommand.run(args.drop(1), env, out, err)
+        if (args.firstOrNull() == "policy") return Policy.run(args.drop(1), out, err)
         if (args == listOf("--version") || args == listOf("--version", "--json")) {
             out(if ("--json" in args) gson.toJson(cli()) else "sentomaru protect $BUILD (contract v$VERSION, runtime sdk $RUNTIME_SDK)")
             return 0
@@ -148,13 +151,21 @@ object Cli {
                     throw ProtectException(ErrorCode.CONTROL_FAILED, "${control.id}: not applicable by this build")
                 val steps = resolved.filter { it.first.changesBinary }.map { it.first to it.second.fields }
                 if (steps.isEmpty()) throw ProtectException(ErrorCode.CONTROL_FAILED, "nothing to apply")
-                if (artifact.kind != ArtifactKind.AAB)
-                    throw ProtectException(ErrorCode.CONTROL_FAILED, "${steps.first().first.id}: APK input not supported by this build (AAB only)")
+                if (artifact.kind == ArtifactKind.APK) steps.firstOrNull { !it.first.appliesToApk }?.let {
+                    throw ProtectException(ErrorCode.CONTROL_FAILED, "${it.first.id}: APK input not supported by this build (AAB only)")
+                }
+                // G-03b3: an APK is signed with apksig v2/v3 from a keystore (or left unsigned); the OpenBao signer is a JAR signer.
+                if (artifact.kind == ArtifactKind.APK && sign == "openbao")
+                    throw ProtectException(ErrorCode.USAGE, "--sign openbao signs a bundle (JAR) only: an APK needs --sign keystore or none")
                 var certificate: String? = null
-                val injected = AabInjector.inject(options.input, artifact, steps, context, options.out, lab = options.lab) { temp ->
-                    if (sign == "keystore") certificate = AabSigner.sign(temp, File(options.keystore!!), options.keyAlias!!, env)
+                val finish: (File) -> Unit = { temp ->
+                    if (sign == "keystore") certificate = if (artifact.kind == ArtifactKind.APK)
+                        ApkSignerKeystore.sign(temp, File(options.keystore!!), options.keyAlias!!, env, minSdk)
+                    else AabSigner.sign(temp, File(options.keystore!!), options.keyAlias!!, env)
                     if (sign == "openbao") certificate = (openBaoFactory ?: { t, e -> OpenBaoSigner(t, e) })(options.openbao!!, env).sign(temp)
                 }
+                val injected = if (artifact.kind == ArtifactKind.APK) ApkInjector.inject(options.input, artifact, steps, context, options.out, finish)
+                    else AabInjector.inject(options.input, artifact, steps, context, options.out, lab = options.lab, finish = finish)
                 produced = injected.output
                 // A signature this run just made that does not verify is the signing failing (7), never the input (3).
                 if (certificate != null) {
@@ -165,7 +176,8 @@ object Cli {
                     }
                     if (verified != certificate) throw ProtectException(ErrorCode.SIGN_FAILED, "the signed bundle does not verify")
                 }
-                if (injected.removedSignature) warn("input-signature-removed", "the input JAR signature no longer matches and was removed")
+                if (injected.removedSignature) warn("input-signature-removed", if (artifact.kind == ArtifactKind.APK)
+                    "the input signature no longer matches and was replaced or removed" else "the input JAR signature no longer matches and was removed")
                 report.add("output", gson.toJsonTree(mapOf("sha256" to injected.sha256, "signed" to (certificate != null),
                     "signingCertSha256" to certificate, "sizeDeltaBytes" to injected.sizeDeltaBytes)))
                 // Controls that change nothing (network-signing, build-obfuscation) keep their plan (`checked`).
@@ -177,6 +189,10 @@ object Cli {
                     "changes" to p.changes.map { mapOf("id" to it.id, "target" to it.target) },
                     "notInstrumentable" to p.notInstrumentable,
                     "evidence" to when {
+                        // G-03b3: an APK has no bundletool; its validation is the output read again (ApkInjector.validate). The
+                        // protection report generator takes AAB runs only (its schema fixes "bundletool validate").
+                        p.id == RuntimeInjection.id && p.status == "applied" && artifact.kind == ArtifactKind.APK ->
+                            mapOf("runtimeDexSha256" to AabInjector.runtimeDexSha256, "validation" to "apk re-read")
                         p.id == RuntimeInjection.id && p.status == "applied" -> mapOf("runtimeDexSha256" to AabInjector.runtimeDexSha256,
                             "validation" to "bundletool validate")
                         else -> p.evidence

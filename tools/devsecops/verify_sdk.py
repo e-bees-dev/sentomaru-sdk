@@ -5,13 +5,16 @@
                          sentomaru-sdk-sbom-<sdk>.cdx.json, SHA256SUMS, statement.json, signature.sigstore.json> \
       --sdk-version <v> --plugin-version <v> --key <release key .pub> --key-sha256 <pin obtained out of band> \
       --cosign <cosign> --cosign-sha256 <pin> --expect-repository <owner/repository that built the release> [--dest <dir>] \
-      [--expect-ref refs/heads/main --expect-workflow-path .github/workflows/sdk-release.yml]
+      [--expect-ref refs/heads/main --expect-workflow-path .github/workflows/sdk-release.yml] \
+      [--require-runner] [--expect-runner-environment github-hosted|self-hosted]
 
 Same model as verify_cli.py (docs/devsecops/adr-0004-sdk-registry.md): the six files are first copied into a private 0700
 directory and only that copy is checked, hashed and extracted. Checks, in order: tools/shield/verify_release.py (pinned
 cosign and key, message-signature bundle over the statement, strict statement, the four subjects' digests, the signed
 repository/ref/workflow equal to the expected ones); the signed buildType is the SDK distribution's; the signed
-sdkVersion and pluginVersion are the ones asked for; SHA256SUMS lists exactly the two archives and the SBOM with their digests. Then
+sdkVersion and pluginVersion are the ones asked for; the signed runner class (item 36) is well formed and a statement
+without it is reported on stderr as `sdk-notice: runner-not-asserted`, never approved in silence (--require-runner refuses it,
+--expect-runner-environment refuses another class); SHA256SUMS lists exactly the two archives and the SBOM with their digests. Then
 the archives are unpacked into a fresh --dest (`maven/` and `plugin/`), refusing absolute paths, `..`, links, devices and
 anything outside the expected prefix; the SBOM is copied to `<dest>/sbom.cdx.json` after a shape check (CycloneDX 1.6, this SDK version). Prints the path of the Maven repository (what SENTOMARU_SDK_REPO points to), of the
 plugin directory and of the SBOM. Exit 1 with `sdk-invalid: <code>` on stderr; nothing is unpacked on failure.
@@ -41,6 +44,40 @@ MAX_UNPACKED = 256 << 20
 
 class Invalid(Exception):
     pass
+
+
+RUNNER_ENVIRONMENTS = ("github-hosted", "self-hosted")
+RUNNER_OS = ("Linux", "macOS", "Windows")
+RUNNER_ARCH = ("X86", "X64", "ARM", "ARM64")
+
+
+def read_runner(build, args):
+    """Item 36: the runner class the signed statement asserts (internalParameters.runner), or None when the statement
+    does not assert one (builds before item 36). A present value must be exactly {environment, os, arch} from the closed
+    tables; --require-runner refuses a statement without it and --expect-runner-environment refuses another class
+    (or a statement that says nothing). It is the packager's claim, signed by the release key: not a third party's."""
+    internal = build.get("internalParameters", {})
+    runner = internal.get("runner") if isinstance(internal, dict) else None
+    if runner is None:
+        if args.require_runner or args.expect_runner_environment:
+            raise Invalid("runner-not-asserted")
+        return None
+    if not isinstance(runner, dict) or set(runner) != {"environment", "os", "arch"} \
+            or runner["environment"] not in RUNNER_ENVIRONMENTS or runner["os"] not in RUNNER_OS \
+            or runner["arch"] not in RUNNER_ARCH:
+        raise Invalid("runner-shape")
+    if args.expect_runner_environment and runner["environment"] != args.expect_runner_environment:
+        raise Invalid("runner-environment")
+    return runner
+
+
+def runner_notice(prefix, runner):
+    """One line on stderr, never on stdout (stdout carries the paths a caller consumes)."""
+    if runner is None:
+        print(f"{prefix}-notice: runner-not-asserted", file=sys.stderr)
+    else:
+        print(f"{prefix}-notice: runner environment={runner['environment']} os={runner['os']} arch={runner['arch']}",
+              file=sys.stderr)
 
 
 def load_verifier():
@@ -164,6 +201,7 @@ def verify(args):
         build = statement.get("predicate", {}).get("buildDefinition", {})
         if build.get("buildType") != BUILD_TYPE:
             raise Invalid("build-type")
+        runner = read_runner(build, args)
         internal = build.get("internalParameters", {})
         if internal.get("sdkVersion") != args.sdk_version or internal.get("pluginVersion") != args.plugin_version:
             raise Invalid("version-mismatch")
@@ -196,6 +234,7 @@ def verify(args):
         except Exception:
             shutil.rmtree(dest, ignore_errors=True)
             raise
+        runner_notice("sdk", runner)
         return maven, plugin, dest / "sbom.cdx.json"
     finally:
         shutil.rmtree(work, ignore_errors=True)
@@ -211,6 +250,10 @@ def main(argv=None):
     p.add_argument("--cosign", required=True)
     p.add_argument("--cosign-sha256", required=True)
     p.add_argument("--dest")
+    p.add_argument("--require-runner", action="store_true",
+                   help="refuse a statement that does not assert the runner class (item 36)")
+    p.add_argument("--expect-runner-environment", choices=RUNNER_ENVIRONMENTS,
+                   help="refuse a statement whose signed runner environment differs (or is not asserted)")
     p.add_argument("--expect-repository", required=True)
     p.add_argument("--expect-ref", default="refs/heads/main")
     p.add_argument("--expect-workflow-path", default=".github/workflows/sdk-release.yml")

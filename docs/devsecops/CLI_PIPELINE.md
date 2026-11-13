@@ -14,16 +14,16 @@ arquitetura: [ADR 0001](adr-0001-post-build.md). Integração do backend e do ap
 | Conferência da ofuscação do build (`build-obfuscation`, D-08) | a partir da `cli-v0.5.0` (publicada em 30/10/2026; no código da CLI desde a D-08f, 27/10/2026); com a `cli-v0.4.0` o perfil sai 4 (`control-not-available`): a CLI só **lê** o artefato e relata se o R8 renomeou o SDK, se o Dart saiu com `--obfuscate` e se o app é `debuggable` (`status: checked`, nunca reprova por falta de ofuscação, só avisa; §2c). R8 e `--obfuscate` são do seu build ([guia](../shield/BUILD_OBFUSCATION.md)) |
 | Pinning da chave do servidor (`network-pinning`, D-07) | a partir da `cli-v0.5.0` (publicada em 30/10/2026; no código da CLI desde a D-07f, 27/10/2026); com a `cli-v0.4.0` o perfil sai 4 (`control-not-available`): num AAB, a CLI gera o `network_security_config` com os pinos SHA-256 do SPKI, o backup e a expiração do perfil, sem mudar o código do app nativo; no Flutter, a parte Dart é uma linha no app (§2d). Antes de fixar, leia [onde pode fixar e como rodar a chave](../shield/NETWORK_PINNING.md) |
 | Cifragem de assets (`asset-encryption`, D-14) | a partir da `cli-v0.5.0` (publicada em 30/10/2026; no código da CLI desde a D-14e, 30/10/2026); com a `cli-v0.4.0` o perfil sai 4 (`control-not-available`): num AAB, a CLI troca os arquivos de `assets/` do `base` marcados no perfil (e um JSON de strings) por arquivos selados que o app lê por chamada explícita do SDK ou do plugin; até **1 MiB por arquivo** (maior sai 5, `asset-too-large`, também no `--dry-run`). É ofuscação de dados, **não sigilo**: a chave vai no próprio app e quem conhece o esquema público recupera os arquivos ([segredo não vai no app](../shield/NO_SECRETS_IN_APP.md); limites no [contrato](../../contracts/devsecops/cli-v1.md#asset-encryption-d-14)) |
-| Proteção de telas (`ui-shield`, G-10) | a partir da `cli-v0.6.0` (**a publicar**; no código da CLI desde a G-10c, 5/11/2026); com a `cli-v0.5.0` o perfil sai 4 (`control-not-available`): num AAB, a CLI só edita o manifesto (três `meta-data` no provider do runtime e, se faltar e o perfil pedir, a permissão `HIDE_OVERLAY_WINDOWS`); quem protege as telas é o runtime injetado, e exige `runtime-injection`. Ainda sem linha no relatório de proteção |
-| O que ainda falta na execução real | APK de entrada (G-03b3: hoje `control-failed`) |
+| Proteção de telas (`ui-shield`, G-10) | a partir da `cli-v0.6.0` (publicada em 8/11/2026; a `cli-v0.6.1`, também, é a versão atual; no código da CLI desde a G-10c, 5/11/2026); com a `cli-v0.5.0` o perfil sai 4 (`control-not-available`): num AAB, a CLI só edita o manifesto (três `meta-data` no provider do runtime e, se faltar e o perfil pedir, a permissão `HIDE_OVERLAY_WINDOWS`); quem protege as telas é o runtime injetado, e exige `runtime-injection`. Tem linha no relatório de proteção (gerador 1.0.14) |
+| O que ainda falta na execução real | APK de entrada na CLI publicada (G-03b3 está no código, sem release: hoje `control-failed`); plugin Gradle (G-03h) |
 | Injeção do runtime num AAB em laboratório (`--lab-unregistered` com `SENTOMARU_LAB=1`) | **fora do contrato**, só laboratório (G-03b2): saída `*.lab.aab`, sem registro, nunca para distribuição. Não use no pipeline do app. A partir da `cli-v0.5.0` (D-16-lab-gate), a execução real registrada recusa `SENTOMARU_LAB=1` (saída 2, `usage`) |
-| Distribuição da CLI (pacote verificado) e Action | **publicada** (G-03f, G-01): release **`cli-v0.5.0`** (30/10/2026; antes `cli-v0.4.0`, de 20/10/2026) com o zip reproduzível, `SHA256SUMS`, o statement in-toto e a assinatura, pela chave `shield-cli-release-hml-g1` pinada no [contrato da distribuição](../../contracts/devsecops/cli-distribution-v1.md); quem baixa é o chamador (desde a `cli-v0.5.0`, do bucket S3 público, com `curl` e sem token; o release do GitHub é o espelho), e o verificador do cliente e a Action (§1a, §3b) conferem antes de extrair. Construir do repositório (§1b) continua possível.<br>Distribuição de HML, assinada pelo OpenBao HML, sem release de produção por ora (D-PRD2); uma futura chave de produção exigirá novo pino e nova chave pública. |
+| Distribuição da CLI (pacote verificado) e Action | **publicada** (G-03f, G-01): release **`cli-v0.6.1`** (8/11/2026; antes `cli-v0.6.0`, do mesmo dia, `cli-v0.5.0`, de 30/10/2026, e `cli-v0.4.0`, de 20/10/2026) com o zip reproduzível, `SHA256SUMS`, o statement in-toto e a assinatura, pela chave `shield-cli-release-hml-g1` pinada no [contrato da distribuição](../../contracts/devsecops/cli-distribution-v1.md); quem baixa é o chamador (desde a `cli-v0.5.0`, do bucket S3 público, com `curl` e sem token; o release do GitHub é o espelho), e o verificador do cliente e a Action (§1a, §3b) conferem antes de extrair. Construir do repositório (§1b) continua possível.<br>Distribuição de HML, assinada pelo OpenBao HML, sem release de produção por ora (D-PRD2); uma futura chave de produção exigirá novo pino e nova chave pública. |
 | Portões de política (G-02) | **disponível** (§3c): sem perfil válido, sem SBOM CycloneDX válido ou com dependência vulnerável conhecida (OSV), a build falha; não usa a CLI nem a credencial |
 | `SENTOMARU_BUILDER_TOKEN` e `SENTOMARU_API` | **só na execução real**. O `--dry-run` não lê nenhum dos dois; os exemplos deste guia são o portão de compatibilidade (`--dry-run`) e não levam a credencial |
 
 Os exemplos deste guia são o **portão de compatibilidade** (`--dry-run`): o job falha se o artefato, o perfil ou o
 app não comportam a proteção pedida, sem alterar o binário. A execução real de um AAB, assinada no seu OpenBao, está
-na §3d; o APK (G-03b3) continua pausado. A assinatura de rede é uma linha no app (§2b), não uma mudança no binário.
+na §3d; o APK (G-03b3) está no código e ainda não saiu em release. A assinatura de rede é uma linha no app (§2b), não uma mudança no binário.
 
 ## 1. Obter a CLI
 
@@ -37,12 +37,12 @@ espelho no repositório público: o GitHub Release exige o `GITHUB_TOKEN` do wor
 de extrair: cosign e chave iguais aos pinos, repositório/ref/workflow/versão assinados, tipo de build da CLI,
 `SHA256SUMS` — e só então extrai ([contrato](../../contracts/devsecops/cli-distribution-v1.md)). O **pino da chave**
 (`SENTOMARU_RELEASE_KEY_SHA256`) vem por um canal diferente do que serve os arquivos (contrato com o Sentomaru, Console).
-A versão atual é `cli-v0.5.0` (publicada em 30/10/2026); a §1b fica para quem prefere construir do repositório.
+A versão atual é `cli-v0.6.1` (publicada em 8/11/2026); a §1b fica para quem prefere construir do repositório.
 
-**Quais tags existem onde.** As versões citadas neste guia (`cli-v0.5.0` e anteriores) são as do repositório de origem, onde o release
+**Quais tags existem onde.** As versões citadas neste guia (`cli-v0.6.1` e anteriores) são as do repositório de origem, onde o release
 é construído e assinado. No repositório público `e-bees-dev/sentomaru-sdk` só existem as tags que alguém criou lá: confira com
 `git ls-remote --tags https://github.com/e-bees-dev/sentomaru-sdk.git` e use a tag e a versão que ele listar em `SENTOMARU_REF` e
-`SENTOMARU_CLI_VERSION`; não assuma que `cli-v0.5.0` esteja lá. Uma tag sozinha não basta: o download pela Action (`download_cli.py`, `GET /releases/tags/cli-v<versão>`) exige um **release publicado** com os quatro arquivos, e uma tag sem release dá `cli-download-failed:http-404`. Confira também a página Releases do repositório; `SENTOMARU_CLI_VERSION` exige a tag `cli-v<versão>` **com release publicado**.
+`SENTOMARU_CLI_VERSION`; não assuma que `cli-v0.6.1` esteja lá. Uma tag sozinha não basta: o download pela Action (`download_cli.py`, `GET /releases/tags/cli-v<versão>`) exige um **release publicado** com os quatro arquivos, e uma tag sem release dá `cli-download-failed:http-404`. Confira também a página Releases do repositório; `SENTOMARU_CLI_VERSION` exige a tag `cli-v<versão>` **com release publicado**.
 
 **Por que o verificador espera `e-bees-dev/Sentomaru`.** O statement assinado de cada release registra o repositório onde o
 workflow rodou e assinou, e o verificador compara esse campo com `--expect-repository` (`expect-repository` na Action). Esse é o repositório
@@ -64,9 +64,9 @@ for f in verify_cli.py verify_release.py; do
 done
 cp .sentomaru/release-key.pub sentomaru-verify/release-key.pub
 # The verifiers come from the same channel as the zip: their digests are pinned per version (contract table).
-# These are the pins of 0.5.0; for another version use its row of contracts/devsecops/cli-distribution-v1.md.
-[[ "$SENTOMARU_CLI_VERSION" == 0.5.0 ]] || { echo "use the verifier pins of ${SENTOMARU_CLI_VERSION} (contract table)"; exit 1; }
-printf '%s  %s\n' a5a8df9e6d39710267abbfdac6223eada67d551255c8cf7bb4dbb4f245bedae5 sentomaru-verify/verify_cli.py 106682c3f9a1e0195d1fb12ae6c6e60a7452008eed34bdddf1b496e100b74b0c sentomaru-verify/verify_release.py | sha256sum -c -
+# These are the pins of 0.6.1; for another version use its row of contracts/devsecops/cli-distribution-v1.md.
+[[ "$SENTOMARU_CLI_VERSION" == 0.6.1 ]] || { echo "use the verifier pins of ${SENTOMARU_CLI_VERSION} (contract table)"; exit 1; }
+printf '%s  %s\n' 443b68e437f42400a43e0881797ee7dff1b7e56f2351eb62e51720086f4c237b sentomaru-verify/verify_cli.py 66192c65c6eb256be60a84f1c4ce3bd6ade97a4ffef6986a036c762fd91263b2 sentomaru-verify/verify_release.py | sha256sum -c -
 curl -fsSL https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-amd64 -o sentomaru-verify/cosign
 chmod +x sentomaru-verify/cosign
 python3 sentomaru-verify/verify_cli.py --dist sentomaru-dist --version "$SENTOMARU_CLI_VERSION" \
@@ -79,7 +79,7 @@ sentomaru protect --version --json
 
 O `verify_cli.py` e o `verify_release.py` vêm do mesmo canal do zip (o bucket, ou uma tag do espelho, que é mutável):
 por isso o pino deles **vale para a versão** — cada release lista os SHA-256 nas notas e o [contrato](../../contracts/devsecops/cli-distribution-v1.md)
-mantém uma tabela por versão, append-only. O bloco acima traz os pinos da 0.5.0 e recusa outra versão; o CI do
+mantém uma tabela por versão, append-only. O bloco acima traz os pinos da 0.6.0 e recusa outra versão; o CI do
 Sentomaru confere que eles são os dos arquivos do repositório. A chave de
 release é salva com o nome neutro `release-key.pub` (o bucket não a serve: ela vem com o pino, e o `verify_cli.py`
 confere o arquivo contra o pino); o pino dela (`SENTOMARU_RELEASE_KEY_SHA256`) **nunca** vem do
@@ -560,9 +560,9 @@ No `--dry-run` só as saídas 0 a 5 aparecem na prática: 6, 7 e 8 dependem da e
 
 | Fatia | Muda neste pipeline |
 |---|---|
-| G-03b3 | APK de entrada na execução real |
-| G-03f | **publicada** (§1a): `cli-v0.5.0`, pelo bucket S3 público com o espelho no GitHub (antes `cli-v0.4.0`, `cli-v0.3.1` e `cli-v0.3.0`); cada versão nova é um release `cli-v<versão>` com uma linha nova na tabela de pinos do contrato |
-| G-01 | **disponível** (§3b): Action fixada por SHA, sobre o release `cli-v0.5.0` |
+| G-03b3 | APK de entrada na execução real (`runtime-injection` e `ui-shield`; código em `main`, sem release; `network-pinning` e `asset-encryption` seguem só AAB) |
+| G-03f | **publicada** (§1a): `cli-v0.6.1`, pelo bucket S3 público com o espelho no GitHub (antes `cli-v0.6.0`, `cli-v0.5.0`, `cli-v0.4.0`, `cli-v0.3.1` e `cli-v0.3.0`); cada versão nova é um release `cli-v<versão>` com uma linha nova na tabela de pinos do contrato |
+| G-01 | **disponível** (§3b): Action fixada por SHA, sobre o release `cli-v0.6.1` |
 | G-02 | **disponível** (§3c): `actions/policy-gate` reprova sem perfil, sem SBOM válido ou com dependência vulnerável conhecida |
 
 Os exemplos deste guia são conferidos no CI (pelo CI do Sentomaru) **por

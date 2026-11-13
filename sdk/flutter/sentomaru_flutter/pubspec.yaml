@@ -1,6 +1,6 @@
 name: sentomaru_flutter
 description: "Sentomaru Flutter adapter (Android and iOS): native RFC 9421 signing via the Sentomaru SDKs and a Dio interceptor."
-version: 0.20.0-rc.3
+version: 0.20.0-rc.4
 publish_to: none
 
 environment:
@@ -12,7 +12,9 @@ dependencies:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
   dio: ^5.7.0
-  crypto: ^3.0.6  # C-03a: SHA-256 of the SPKI (dart.dev package, no native code)
+  crypto: ^3.0.6  # C-03a: SHA-256 of the SPKI (dart.dev package, no native code); also principalOf (D-W-port)
+  flutter_secure_storage: ^9.2.4  # D-W-port: SentomaruEnrollmentAssurance's own principal storage (Keychain/Keystore)
+  shared_preferences: ^2.3.3  # D-W-port: the principal's recovery mirror and the iOS reinstall marker
 
 dev_dependencies:
   flutter_test:

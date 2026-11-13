@@ -339,11 +339,15 @@ class BuildObfuscationTest {
             assertEquals(normalized(without), normalized(with))
             assertEquals(listOf("build-obfuscation-sdk-not-renamed", "build-obfuscation-debuggable"),
                 warnings(with).filter { it.startsWith("build-obfuscation-") })
-            // Nothing to apply alone; an APK stays AAB-only; the lab run takes no check-only control.
+            // Nothing to apply alone; the lab run takes no check-only control. G-03b3: an APK is protected now, and the
+            // check-only control keeps its `checked` status next to the runtime injection.
             refused(6, "control-failed", "nothing to apply",
                 run("--input", input.path, "--profile", profile(section).path, "--out", work.resolve("real-alone").path, env = env))
-            refused(6, "control-failed", null, run("--input", apk.getValue("r8").path, "--profile", profile("$runtime,$section").path,
-                "--out", work.resolve("real-apk").path, "--sign", "none", env = env))
+            val apkOut = work.resolve("real-apk")
+            val apkRun = run("--input", apk.getValue("r8").path, "--profile", profile("$runtime,$section").path, "--out", apkOut.path, "--sign", "none", env = env)
+            assertEquals(apkRun.third, 0, apkRun.first)
+            assertTrue(apkOut.resolve("r8.protected.apk").isFile)
+            assertEquals("checked", control(apkOut).get("status").asString)
         }
         refused(6, "control-failed", "build-obfuscation: not applicable by this build", run("--input", aab.getValue("r8").path,
             "--profile", profile("$runtime,$section").path, "--out", work.resolve("lab-run").path, "--lab-unregistered"))

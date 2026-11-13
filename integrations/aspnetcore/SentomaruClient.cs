@@ -194,6 +194,94 @@ public sealed class SentomaruClient : ISentomaruClient
         }
     }
 
+    public async Task<SentomaruClientResult<FraudEvaluationResponseDto>> EvaluateFraudAsync(FraudEvaluationRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var path = _options.BuildScopedPath("fraud/evaluate");
+        try
+        {
+            using var response = await PostJsonStrictAsync(path, request, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var value = await response.Content.ReadFromJsonAsync<FraudEvaluationResponseDto>(JsonOptions, cancellationToken);
+                return value is null || value.EvaluationId == Guid.Empty
+                    ? SentomaruClientResult<FraudEvaluationResponseDto>.Failure(502, "invalid-response",
+                        message: "Upstream fraud evaluation missing required contract fields")
+                    : SentomaruClientResult<FraudEvaluationResponseDto>.Success(value, (int)response.StatusCode);
+            }
+
+            var (code, reason) = await ParseErrorAsync(response, cancellationToken);
+            return SentomaruClientResult<FraudEvaluationResponseDto>.Failure((int)response.StatusCode, code, reason);
+        }
+        catch (Exception ex) when (IsTransientException(ex) && !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "Sentomaru unavailable during fraud evaluation at {Path}", path);
+            return SentomaruClientResult<FraudEvaluationResponseDto>.Failure(503, "store-unavailable", message: ex.Message);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "Unexpected error calling Sentomaru fraud evaluation {Path}", path);
+            return SentomaruClientResult<FraudEvaluationResponseDto>.Failure(500, "internal-error", message: ex.Message);
+        }
+    }
+
+    public async Task<SentomaruClientResult<WebEvaluationResponseDto>> EvaluateWebAsync(WebEvaluationRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var path = _options.BuildScopedPath("web/evaluations");
+        try
+        {
+            using var response = await PostJsonStrictAsync(path, request, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var value = await response.Content.ReadFromJsonAsync<WebEvaluationResponseDto>(JsonOptions, cancellationToken);
+                // The route is always advisory and shadow: an answer that says otherwise is not this contract and is never handed on.
+                return value is null || !value.Advisory || value.Mode != "shadow" || string.IsNullOrEmpty(value.Recommendation)
+                    ? SentomaruClientResult<WebEvaluationResponseDto>.Failure(502, "invalid-response",
+                        message: "Upstream web evaluation missing required contract fields")
+                    : SentomaruClientResult<WebEvaluationResponseDto>.Success(value, (int)response.StatusCode);
+            }
+
+            var (code, reason) = await ParseErrorAsync(response, cancellationToken);
+            return SentomaruClientResult<WebEvaluationResponseDto>.Failure((int)response.StatusCode, code, reason);
+        }
+        catch (Exception ex) when (IsTransientException(ex) && !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "Sentomaru unavailable during web evaluation at {Path}", path);
+            return SentomaruClientResult<WebEvaluationResponseDto>.Failure(503, "store-unavailable", message: ex.Message);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "Unexpected error calling Sentomaru web evaluation {Path}", path);
+            return SentomaruClientResult<WebEvaluationResponseDto>.Failure(500, "internal-error", message: ex.Message);
+        }
+    }
+
+    public async Task<SentomaruClientResult<bool>> SendHeartbeatAsync(ConsumerHeartbeatDto heartbeat, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(heartbeat);
+        var path = _options.BuildScopedPath("consumer/heartbeat");
+        try
+        {
+            using var response = await PostJsonStrictAsync(path, heartbeat, cancellationToken);
+            if (response.IsSuccessStatusCode) return SentomaruClientResult<bool>.Success(true, (int)response.StatusCode);
+            var (code, reason) = await ParseErrorAsync(response, cancellationToken);
+            return SentomaruClientResult<bool>.Failure((int)response.StatusCode, code, reason);
+        }
+        catch (Exception ex) when (IsTransientException(ex) && !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation(ex, "Sentomaru unavailable for the consumer heartbeat at {Path}", path);
+            return SentomaruClientResult<bool>.Failure(503, "store-unavailable", message: ex.Message);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "Unexpected error sending the consumer heartbeat {Path}", path);
+            return SentomaruClientResult<bool>.Failure(500, "internal-error", message: ex.Message);
+        }
+    }
+
     public async Task<SentomaruClientResult<EvaluationResponseDto>> EvaluateAsync(
         EvaluationRequestDto request,
         CancellationToken cancellationToken = default)

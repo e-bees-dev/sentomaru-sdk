@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import 'user_message.dart';
+
 /// Categorized error codes per Decision E7.
 ///
 /// Ensures failure states are recoverable, categorized, and typed.
@@ -122,6 +124,50 @@ class SentomaruException implements Exception {
       message,
       details,
     );
+  }
+
+  /// `sdk-user-message-v1`: the text to show the end user when this failure blocks an operation, or null when it is not a block
+  /// (cancelled, not initialized, configuration, malformed request...: the app decides). Never carries [code], [message] or [details].
+  /// [overrides] maps a resolved language (`pt-BR`, `en`, `es`) to the host's own text; [locale] is a BCP 47 tag (null = `en`).
+  String? userMessage({String? locale, Map<String, String>? overrides}) {
+    final raw = details is String ? details as String : null;
+    final String stable;
+    switch (code) {
+      case SentomaruErrorCode.serverRejected:
+      case SentomaruErrorCode.unsupported:
+        stable = raw ?? '';
+        break;
+      case SentomaruErrorCode.keyInvalidated:
+        stable = 'KeyInvalidated';
+        break;
+      case SentomaruErrorCode.strongBoxUnavailable:
+        stable = 'StrongBoxUnavailable';
+        break;
+      case SentomaruErrorCode.notEnrolled:
+        stable = 'NotEnrolled';
+        break;
+      case SentomaruErrorCode.enrollmentRequired:
+        stable = 'EnrollmentRequired';
+        break;
+      case SentomaruErrorCode.challengeExpired:
+        stable = 'ChallengeExpired';
+        break;
+      case SentomaruErrorCode.networkUnavailable:
+        stable = 'NetworkUnavailable';
+        break;
+      case SentomaruErrorCode.renewalBackoff:
+        stable = 'RenewalBackoff';
+        break;
+      case SentomaruErrorCode.reenrollmentRefused:
+        stable = 'ReenrollmentRefused';
+        break;
+      case SentomaruErrorCode.pinningRefused:
+        stable = 'PinningRefused';
+        break;
+      default:
+        return null;
+    }
+    return SentomaruUserMessage.forCode(stable, locale: locale, overrides: overrides);
   }
 
   @override

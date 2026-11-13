@@ -23,7 +23,7 @@ executado nesse repositório.
   `SentomaruUrlConnection.send` e o Dio com `addSentomaru`. Um `url.openConnection()` direto, outro cliente HTTP,
   WebView e Cronet não são. A CLI confere só que o SDK ou o plugin está linkado no app, não que a linha foi chamada
   com as rotas certas (aviso `network-signing-install-line`). Quem recusa uma chamada sem assinatura é o backend.
-- **A execução real aceita AAB.** APK de entrada ainda responde `control-failed` (G-03b3).
+- **A execução real da CLI publicada (`cli-v0.6.1`) aceita AAB.** A entrada APK (G-03b3) está no código, sem release: com a CLI publicada, APK de entrada ainda responde `control-failed`.
 - **O registro da build é declaração.** O Sentomaru não vê o binário: os digests e o `signed` da corrida são o que a
   CLI declarou com a credencial `shield-builder`.
 

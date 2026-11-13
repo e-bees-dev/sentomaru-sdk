@@ -210,7 +210,7 @@ class ProtectCliTest {
 
     /**
      * The contract order compatibility → controls in a real run: an APK the control cannot take (the provider is
-     * already declared) answers 5 (app-incompatible), not 6 (control-failed, the APK rule until G-03b3). D-16-lab-gate
+     * already declared) answers 5 (app-incompatible), not 6 (control-failed, the APK rule for a control that does not edit an APK). D-16-lab-gate
      * keeps this order covered for the released controls; for asset-encryption (released in D-14e) it is
      * AssetEncryptionTest.aRegisteredRunAppliesItWithoutTheGateAndTheLabRunAppliesItAsTheDryRunPlans.
      */
@@ -221,8 +221,12 @@ class ProtectCliTest {
             val env = mapOf("SENTOMARU_BUILDER_TOKEN" to "builder-token-fixture", "SENTOMARU_API" to registry.address.toString())
             refused(5, "app-incompatible", "--input", protectedApk.path, "--profile", profile(both).path,
                 "--out", work.resolve("out-real-incompatible").path, "--sign", "none", env = env)
-            refused(6, "control-failed", "--input", apk.path, "--profile", profile(both).path,
+            // G-03b3: an APK that the control can take is protected now (the APK rule answers control-failed only for the
+            // controls that do not edit an APK yet: network-pinning, see ApkInjectionTest and networkPinningIsReleasedWithOrWithoutTheGate).
+            val (code, _, err) = run("--input", apk.path, "--profile", profile(both).path,
                 "--out", work.resolve("out-real-apk").path, "--sign", "none", env = env)
+            assertEquals(err, 0, code)
+            assertTrue(work.resolve("out-real-apk/app.protected.apk").isFile)
         }
     }
 
@@ -291,7 +295,7 @@ class ProtectCliTest {
     /**
      * D-07b: network-pinning was behind the laboratory gate (SENTOMARU_LAB=1, not contractual) until D-07f. D-07f
      * released it: with and without the gate the section is validated and the app checked (this AAB has no
-     * resources.pb: 5), an APK is planned in the dry-run (the real run of an APK stays control-failed; with the gate,
+     * resources.pb: 5), an APK is planned in the dry-run (the real run of an APK with this control stays control-failed; with the gate,
      * D-16-lab-gate refuses the registered run first: usage) and `controls` lists it.
      */
     @Test fun networkPinningIsReleasedWithOrWithoutTheGate() {
@@ -314,7 +318,7 @@ class ProtectCliTest {
                 assertEquals(listOf("runtime-injection", "network-signing", "network-pinning"), controls.map { it.get("id").asString })
                 assertEquals(listOf("res.xml.added", "resources.entry.added", "manifest.network-security-config.set", "manifest.meta-data.added"),
                     controls[2].getAsJsonArray("changes").map { it.asJsonObject.get("id").asString })
-                // The real run of an APK stays control-failed (AAB only, until G-03b3). D-16-lab-gate: with
+                // The real run of an APK with network-pinning stays control-failed (the control edits an AAB only). D-16-lab-gate: with
                 // SENTOMARU_LAB=1 the registered run is refused first (usage, before the run is opened).
                 FakeRegistry().use { registry ->
                     val gate = env["SENTOMARU_LAB"] == "1"

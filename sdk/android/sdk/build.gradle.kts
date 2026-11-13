@@ -29,6 +29,8 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // C-04b: Play Integrity standard request (advisory token at enrollment).
     implementation("com.google.android.play:integrity:1.6.0")
+    // D-W-port: EnrollmentAssurance's own principal storage (EncryptedSharedPreferences).
+    implementation("androidx.security:security-crypto:1.1.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }

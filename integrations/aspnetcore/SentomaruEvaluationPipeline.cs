@@ -108,9 +108,24 @@ public static class SentomaruEvaluationPipeline
     public static async Task<SentomaruDecision> DecideAsync(HttpContext httpContext, SentomaruEvaluationOptions request,
         ILogger? logger = null)
     {
+        var decision = await DecideCoreAsync(httpContext, request, logger);
+        if (decision.Kind != SentomaruDecisionKind.Refuse || decision.Error is not { Message: null } error) return decision;
+        // sdk-user-message-v1: only the presentable text is added; code, status and the rest of the body are unchanged.
+        var situation = SentomaruUserMessage.SituationForRefusal(error.Code, decision.StatusCode);
+        if (situation is null) return decision;
+        var configured = httpContext.RequestServices.GetService<IOptions<SentomaruClientOptions>>()?.Value;
+        if (configured is not { IncludeUserMessage: true }) return decision;
+        var message = SentomaruUserMessage.Resolve(situation, SentomaruUserMessage.FromAcceptLanguage(httpContext.Request.Headers.AcceptLanguage.ToString()), configured.UserMessages);
+        return decision with { Error = error with { Message = message } };
+    }
+
+    private static async Task<SentomaruDecision> DecideCoreAsync(HttpContext httpContext, SentomaruEvaluationOptions request,
+        ILogger? logger)
+    {
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentNullException.ThrowIfNull(request);
         var operation = request.Operation;
+        httpContext.Items[SentomaruIntegrityAttribute.OperationItem] = operation;
         var services = httpContext.RequestServices;
         var client = services.GetService<ISentomaruClient>();
         var options = services.GetService<IOptions<SentomaruClientOptions>>()?.Value ?? new SentomaruClientOptions();

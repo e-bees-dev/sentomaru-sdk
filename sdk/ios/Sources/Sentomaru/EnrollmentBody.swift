@@ -14,7 +14,10 @@ struct AppAttestEvidence: Sendable {
 /// `requiresHardware` is always false: the app's own `requiresHardware` never accepts `device_attested` (D-IOS9), so
 /// `true` would always be refused with 422 on iOS.
 enum EnrollmentBody {
-    static func encode(token: String, publicKey: Data, appAttest: AppAttestEvidence, predecessor: String = "") throws -> Data {
+    /// `config` nil (test vectors with no `SentomaruConfig` of their own) omits `sdkModes` entirely: the body is
+    /// byte-identical to before D-F1. A real [SentomaruClient] always passes its own config.
+    static func encode(token: String, publicKey: Data, appAttest: AppAttestEvidence, predecessor: String = "",
+        config: SentomaruConfig? = nil) throws -> Data {
         guard CanonicalBase64.decode(token) != nil, AppAttestBinding.validKeyId(appAttest.keyId),
               (1...AppAttestBinding.maxAttestationObject).contains(appAttest.attestationObject.count)
         else { throw SentomaruError.keyUnavailable }
@@ -22,8 +25,22 @@ enum EnrollmentBody {
             "\"publicKey\":\"\(publicKey.base64EncodedString())\"," +
             "\"attestationFormat\":\"apple-app-attest\"," +
             "\"appAttest\":{\"keyId\":\"\(appAttest.keyId)\",\"attestationObject\":\"\(appAttest.attestationObject.base64EncodedString())\"}" +
-            predecessor + "}"
+            predecessor + (config.map(SdkModesJson.encode) ?? "") + "}"
         return Data(text.utf8)
+    }
+}
+
+/// D-F1 (ativação de módulos em cliente novo, Fase F): the SDK's own self-declaration, additive member of the
+/// enrollment/reattestation body (contract v1.20). `playIntegrity` is always `unsupported` on iOS: Play Integrity is a
+/// Google API, and [SentomaruConfig.playIntegrityCloudProjectNumber] does not exist on this platform. Purely
+/// informational: never read back by the SDK itself.
+enum SdkModesJson {
+    static let sdk = "sentomaru_ios"
+    static let sdkVersion = "0.2.0-rc.4"
+
+    static func encode(_ config: SentomaruConfig) -> String {
+        ",\"sdkModes\":{\"enforce\":\(config.declaredEnforce),\"installationResponse\":\(config.declaredInstallationResponse)," +
+            "\"playIntegrity\":\"unsupported\",\"sdk\":\"\(sdk)\",\"sdkVersion\":\"\(sdkVersion)\"}"
     }
 }
 

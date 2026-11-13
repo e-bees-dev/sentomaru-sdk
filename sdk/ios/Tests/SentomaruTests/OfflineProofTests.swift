@@ -217,6 +217,50 @@ final class OfflineProofTests: XCTestCase {
         XCTAssertThrowsError(try OfflineRequests.reconcileBody(permit: permit, seals: []))
         XCTAssertThrowsError(try OfflineRequests.reconcileBody(permit: permit, seals: seals + seals))
     }
+
+    // MARK: D-26 verdict reader (contract v1.18)
+
+    private func verdict(status: String = "accepted", signals: String = "[]", advisories: String? = nil, count: String = "1") -> Data {
+        let extra = advisories.map { ",\"advisories\":\($0)" } ?? ""
+        return Data("{\"permitId\":\"6F1C0000-0000-4000-8000-00000000D026\",\"status\":\"\(status)\",\"itemCount\":\(count),\"signals\":\(signals),\"bootCount\":\"unavailable\"\(extra)}".utf8)
+    }
+
+    func testAdvisoriesAreReadWithoutChangingTheVerdict() throws {
+        let v = try XCTUnwrap(OfflineVerdict.parse(verdict(advisories: "[\"offline_boot_unavailable\"]")))
+        XCTAssertTrue(v.accepted)
+        XCTAssertTrue(v.signals.isEmpty) // not a signal: the verdict stands
+        XCTAssertEqual(v.advisories, ["offline_boot_unavailable"])
+        XCTAssertEqual(try XCTUnwrap(OfflineVerdict.parse(verdict(advisories: "[\"offline_boot_unavailable\",\"future_code\",\"offline_boot_unavailable\"]"))).advisories,
+                       ["offline_boot_unavailable", "future_code"])
+        XCTAssertEqual(try XCTUnwrap(OfflineVerdict.parse(verdict(advisories: "[]"))).advisories, [])
+        XCTAssertEqual(try XCTUnwrap(OfflineVerdict.parse(verdict())).advisories, []) // an older server: no field
+    }
+
+    func testAMalformedAdvisoryListReadsAsNoneAndIsNeverARefusal() throws {
+        for odd in ["[\"Bad Code\"]", "[1]", "\"x\"", "{\"a\":1}", "[\"\(String(repeating: "x", count: 65))\"]", "null", "[\"ok\",\"No\"]"] {
+            let v = try XCTUnwrap(OfflineVerdict.parse(verdict(advisories: odd)), odd)
+            XCTAssertEqual(v.advisories, [], odd)
+            XCTAssertTrue(v.accepted, odd)
+        }
+        let many = "[" + "abcdefghijkl".map { "\"code_\($0)\"" }.joined(separator: ",") + "]"
+        XCTAssertEqual(try XCTUnwrap(OfflineVerdict.parse(verdict(advisories: many))).advisories.count, 8)
+    }
+
+    func testSignalsStayStrict() throws {
+        let rejected = verdict(status: "rejected", signals: "[\"offline_clock_tampered\"]")
+        XCTAssertEqual(try XCTUnwrap(OfflineVerdict.parse(rejected)).accepted, false)
+        let bad: [Data] = [
+            verdict(status: "rejected", signals: "[\"raw_device_value\"]"),
+            verdict(status: "accepted", signals: "[\"offline_clock_tampered\"]"),
+            verdict(status: "rejected"),
+            verdict(status: "pending"),
+            verdict(count: "10000"),
+            verdict(count: "true"),
+            Data("[]".utf8), Data("not json".utf8),
+            verdict(advisories: "[\"" + String(repeating: "a", count: 20000) + "\"]"),
+        ]
+        for data in bad { XCTAssertNil(OfflineVerdict.parse(data), data.string.prefix(80).description) }
+    }
 }
 
 private extension Data { var string: String { String(decoding: self, as: UTF8.self) } }

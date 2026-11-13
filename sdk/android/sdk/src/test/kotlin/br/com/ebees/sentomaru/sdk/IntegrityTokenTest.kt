@@ -143,7 +143,7 @@ class IntegrityTokenTest {
     @Test fun encodeDropsAnUnsafeTokenEvenWhenCalledDirectly() {
         val material = Keys().generate("a", ByteArray(32), false)
         for (bad in listOf("a\"b", "a b", "a\\b", "", "a".repeat(16385), "ação")) {
-            val body = String(EnrollmentBody.encode(Base64.getEncoder().encodeToString(ByteArray(32)), material, false, bad))
+            val body = String(EnrollmentBody.encode(Base64.getEncoder().encodeToString(ByteArray(32)), material, false, config, bad))
             assertFalse(bad, body.contains("integrityToken"))
         }
     }

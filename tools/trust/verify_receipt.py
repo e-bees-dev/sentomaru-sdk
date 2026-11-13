@@ -22,8 +22,10 @@ import sys
 import tempfile
 
 SCHEMA = "sentomaru-completion-receipt/1"
+SCHEMA_V2 = "sentomaru-completion-receipt/2"  # contracts/trust/completion-receipt-v2.md: installationRef instead of installationCode
 TOP = {"schema", "receiptId", "issuedAt", "organization", "app", "environment", "installationCode", "operation", "operationId",
        "proofStatus", "decision", "policy", "userPresenceVerified", "notice"}
+TOP_V2 = (TOP - {"installationCode"}) | {"installationRef"}
 DECISION = {"policyStatus", "recommendedAction", "reasonCodes"}
 POLICY = {"digest", "id", "version"}
 UUID = re.compile(r"\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z")
@@ -32,6 +34,7 @@ SLUG = re.compile(r"\A[a-z0-9][a-z0-9-]{0,62}\Z")
 PRINTABLE = re.compile(r"\A[ -~]{1,128}\Z")
 CODE = re.compile(r"\A[A-Za-z0-9._-]{1,64}\Z")
 HEX64 = re.compile(r"\A[0-9a-f]{64}\Z")
+HEX32 = re.compile(r"\A[0-9a-f]{32}\Z")
 
 
 class Reject(Exception):
@@ -61,10 +64,12 @@ def jcs(value):
 def check_manifest(manifest):
     if not isinstance(manifest, dict):
         raise Reject("manifest-format")
-    if manifest.get("schema") != SCHEMA:
+    if manifest.get("schema") not in (SCHEMA, SCHEMA_V2):
         raise Reject("schema-unsupported")
-    if set(manifest) != TOP:
-        raise Reject("unknown-member" if set(manifest) - TOP else "missing-member")
+    v2 = manifest["schema"] == SCHEMA_V2
+    top = TOP_V2 if v2 else TOP
+    if set(manifest) != top:
+        raise Reject("unknown-member" if set(manifest) - top else "missing-member")
     if not isinstance(manifest["userPresenceVerified"], bool):
         raise Reject("user-presence-format")
     decision = manifest["decision"]
@@ -84,7 +89,8 @@ def check_manifest(manifest):
     checks = [
         UUID.match(str(manifest["receiptId"])), INSTANT.match(str(manifest["issuedAt"])),
         all(isinstance(manifest[k], str) and SLUG.match(manifest[k]) for k in ("organization", "app", "environment")),
-        isinstance(manifest["installationCode"], str) and CODE.match(manifest["installationCode"]),
+        (isinstance(manifest["installationRef"], str) and HEX32.match(manifest["installationRef"])) if v2
+        else (isinstance(manifest["installationCode"], str) and CODE.match(manifest["installationCode"])),
         isinstance(manifest["operation"], str) and PRINTABLE.match(manifest["operation"]),
         manifest["operationId"] is None or isinstance(manifest["operationId"], str) and PRINTABLE.match(manifest["operationId"]),
         manifest["proofStatus"] == "valid", isinstance(manifest["notice"], str),

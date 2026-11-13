@@ -122,7 +122,7 @@ class SentomaruClient @JvmOverloads constructor(val config: SentomaruConfig, int
                 }
                 throw e
             }
-            body = EnrollmentBody.encode(challenge.token, material, requiresHardware, integrityToken)
+            body = EnrollmentBody.encode(challenge.token, material, requiresHardware, config, integrityToken)
             pending = InstallationRecord(config.identity, pending.alias, challenge, strongBox, body, requiresHardware = requiresHardware,
                 generation = pending.generation, retiredKeys = pending.retiredKeys, pendingRotation = pending.pendingRotation,
                 versionCode = attestedVersion)
@@ -210,7 +210,7 @@ class SentomaruClient @JvmOverloads constructor(val config: SentomaruConfig, int
                 }
                 throw e
             }
-            val body = EnrollmentBody.encode(challenge.token, material, requiresHardware, integrityToken)
+            val body = EnrollmentBody.encode(challenge.token, material, requiresHardware, config, integrityToken)
             pending = PendingRotation(newAlias, challenge, strongBox, body, requiresHardware, appVersionCode)
         }
         return sendRotation(currentRecord, pending, generation, send)
@@ -621,18 +621,37 @@ class SentomaruClient @JvmOverloads constructor(val config: SentomaruConfig, int
  */
 internal object EnrollmentBody {
     /** D-04d: a rotation's body: the same schema plus the `predecessor` member (before `integrityToken`). */
-    fun encode(token: String, material: RotationMaterial, requiresHardware: Boolean, integrityToken: String? = null): ByteArray =
-        encode(token, material.material, requiresHardware, integrityToken, material.member())
+    fun encode(token: String, material: RotationMaterial, requiresHardware: Boolean, config: SentomaruConfig,
+        integrityToken: String? = null): ByteArray =
+        encode(token, material.material, requiresHardware, config, integrityToken, material.member())
 
-    fun encode(token: String, material: KeyMaterial, requiresHardware: Boolean, integrityToken: String? = null,
-        predecessor: String = ""): ByteArray {
+    fun encode(token: String, material: KeyMaterial, requiresHardware: Boolean, config: SentomaruConfig,
+        integrityToken: String? = null, predecessor: String = ""): ByteArray {
         val encoder = Base64.getEncoder()
         val chain = material.chain()
         if (chain.size > 5 || chain.any { it.isEmpty() || it.size > 4096 }) fail(EnrollmentError.KeyUnavailable())
         val certificates = if (chain.isEmpty()) "" else ",\"attestationChain\":[" +
             chain.joinToString(",") { "\"${encoder.encodeToString(it)}\"" } + "]"
         val integrity = IntegrityRequestHash.acceptable(integrityToken)?.let { ",\"integrityToken\":\"$it\"" } ?: ""
+        // sdkModes before integrityToken (never after it): every existing test anchors the optional integrityToken,
+        // present or not, as the LAST member before the closing brace.
         return ("{\"challenge\":\"$token\",\"requiresHardware\":$requiresHardware," +
-            "\"publicKey\":\"${encoder.encodeToString(material.publicKey())}\"$certificates$predecessor$integrity}").toByteArray(Charsets.UTF_8)
+            "\"publicKey\":\"${encoder.encodeToString(material.publicKey())}\"$certificates$predecessor" +
+            "${SdkModesJson.encode(config)}$integrity}").toByteArray(Charsets.UTF_8)
+    }
+}
+
+/**
+ * D-F1 (ativação de módulos em cliente novo, Fase F): the SDK's own self-declaration, additive member of the
+ * enrollment/reattestation body (contract v1.20). Purely informational: never read back by the SDK itself.
+ */
+internal object SdkModesJson {
+    const val SDK = "sentomaru_android"
+    const val SDK_VERSION = "0.2.0-rc.4"
+
+    fun encode(config: SentomaruConfig): String {
+        val playIntegrity = if (config.playIntegrityCloudProjectNumber != null) "requested" else "not_configured"
+        return ",\"sdkModes\":{\"enforce\":${config.declaredEnforce},\"installationResponse\":${config.declaredInstallationResponse}," +
+            "\"playIntegrity\":\"$playIntegrity\",\"sdk\":\"$SDK\",\"sdkVersion\":\"$SDK_VERSION\"}"
     }
 }

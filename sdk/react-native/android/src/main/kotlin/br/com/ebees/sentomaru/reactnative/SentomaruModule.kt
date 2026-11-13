@@ -2,7 +2,11 @@ package br.com.ebees.sentomaru.reactnative
 
 import br.com.ebees.sentomaru.hybrid.BridgeCall
 import br.com.ebees.sentomaru.hybrid.BridgeResult
+import br.com.ebees.sentomaru.hybrid.SealedReadError
+import br.com.ebees.sentomaru.hybrid.SealedReader
 import br.com.ebees.sentomaru.hybrid.SentomaruBridge
+import br.com.ebees.sentomaru.sdk.sealed.SentomaruSealed
+import br.com.ebees.sentomaru.sdk.sealed.SentomaruSealedException
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -10,6 +14,8 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableArray
 import com.facebook.react.module.annotations.ReactModule
+import android.content.Context
+import java.io.FileNotFoundException
 
 /**
  * React Native module `Sentomaru`. One entry point, [call], with the method names and arguments of
@@ -21,7 +27,7 @@ import com.facebook.react.module.annotations.ReactModule
  */
 @ReactModule(name = SentomaruModule.NAME)
 class SentomaruModule(context: ReactApplicationContext) : NativeSentomaruSpec(context) {
-    private val core = SentomaruBridge { null }.also { it.context = context.applicationContext }
+    private val core = SentomaruBridge({ null }, sealedReader(context.applicationContext)).also { it.context = context.applicationContext }
 
     override fun getName(): String = NAME
 
@@ -56,4 +62,27 @@ class SentomaruModule(context: ReactApplicationContext) : NativeSentomaruSpec(co
     companion object {
         const val NAME = "Sentomaru"
     }
+}
+
+/**
+ * D-14b: the production [SealedReader] for the React Native layer. RN has no bundler step over the native `assets/`
+ * folder (the JS bundle itself is `assets/index.android.bundle`, a different file), so the `key` a page passes is
+ * already the canonical path `SentomaruSealed` expects: no translation, unlike the Flutter plugin's pubspec prefix.
+ * The SDK's own exception becomes [SealedReadError] (the stable bridge code), so `SentomaruBridge` itself never
+ * needs to import `sdk/android/sealed`.
+ */
+internal fun sealedReader(context: Context): SealedReader = object : SealedReader {
+    override fun configure(allowPlainFallback: Boolean, plainStringsKey: String?) =
+        SentomaruSealed.configure(allowPlainFallback, plainStringsKey)
+    override fun bytes(key: String): ByteArray = wrapSealedRead { SentomaruSealed.bytes(context, key) }
+    override fun string(key: String): String? = wrapSealedRead { SentomaruSealed.string(context, key) }
+}
+
+internal fun <T> wrapSealedRead(read: () -> T): T = try {
+    read()
+} catch (e: SentomaruSealedException) {
+    throw SealedReadError(e.code.wire, e.code.wire)
+} catch (e: FileNotFoundException) {
+    // Only with the plain fallback (an unsealed debug build): the asset is not in the package.
+    throw SealedReadError("AssetNotFound", "Asset not found")
 }

@@ -1,3 +1,5 @@
+import { userMessageForCode, type MessageOverrides } from './userMessage.ts';
+
 // types of the React Native layer. Names and arguments are those of contracts/sdk/hybrid-bridge-v1.json;
 // nothing here is logic. Shapes of replies are the ones the shared Kotlin bridge (sdk/hybrid-core) returns.
 
@@ -15,8 +17,21 @@ export interface InitializeOptions {
   reattestationMinIntervalSeconds?: number;
 }
 
+/**
+ * The challenge the app's backend issued, exactly the shape the shared Kotlin/Swift bridge decodes
+ * (`SentomaruBridge.parseChallenge`, `HybridBridge.enrollmentArguments`): a bare string here was never valid (D-W-port
+ * fix - `EnrollOptions.challenge` used to be typed `string`, which a real native call would have refused as
+ * malformed; nothing in this package exercised it against the real bridge before now).
+ */
+export interface EnrollmentChallenge {
+  id: string;
+  token: string;
+  expiresAtEpochMs: number;
+  attestationChallengeB64: string;
+}
+
 export interface EnrollOptions {
-  challenge: string;
+  challenge: EnrollmentChallenge;
   strongBox?: boolean;
   requiresHardware?: boolean;
 }
@@ -79,6 +94,11 @@ export class SentomaruError extends Error {
     super(message ?? code);
     this.name = 'SentomaruError';
     this.code = code;
+  }
+
+  /** sdk-user-message-v1: the end-user text for this code (null when the code is not a block); the code and `message` are unchanged. */
+  userMessage(locale?: string | null, overrides?: MessageOverrides): string | null {
+    return userMessageForCode(this.code, locale, overrides);
   }
 }
 

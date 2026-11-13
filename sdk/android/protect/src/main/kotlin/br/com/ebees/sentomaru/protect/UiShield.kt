@@ -73,6 +73,13 @@ object UiShieldControl : Control {
                 "hideOverlayWindows" to s.hideOverlay.toString(), "applies" to "activity-lifecycle"))
     }
 
+    override val appliesToApk = true
+
+    override fun applyApk(section: JsonObject, edit: ApkEdit, context: ControlContext): List<Change> {
+        val s = read(section)
+        return ApkInjector.uiShield(edit, s.all, s.activities, s.hideOverlay)
+    }
+
     override fun apply(section: JsonObject, edit: AabEdit, context: ControlContext): List<Change> {
         val s = read(section)
         val (manifest, changes) = AabInjector.uiShield(edit.manifest, s.all, s.activities, s.hideOverlay)

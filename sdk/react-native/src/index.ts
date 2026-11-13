@@ -15,3 +15,4 @@ export const Sentomaru = createSentomaru({
 
 export { createSentomaru } from './bridge.ts';
 export * from './types.ts';
+export * from './userMessage.ts';

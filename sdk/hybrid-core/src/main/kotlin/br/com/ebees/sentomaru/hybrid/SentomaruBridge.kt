@@ -39,12 +39,35 @@ fun interface SignalEventFeed {
 }
 
 /**
+ * D-14b for the non-Flutter hybrid layers (React Native, Capacitor, Cordova): the native reader of `sentomaru
+ * protect`'s sealed assets (contracts/devsecops/cli-v1.md, asset-encryption). Flutter keeps its own dispatcher
+ * (`sentomaru_flutter`'s `SentomaruFlutterSealed`), which also translates the pubspec asset key into the canonical
+ * path; the other layers have no such bundler step, so the `key` a layer forwards already IS the canonical path
+ * (`assets/...`) that [bytes]/[string] expect, unchanged. A layer that wires none of this answers
+ * `sealedConfigure`/`sealedLoad`/`sealedString` with `ConfigurationError`, never a crash and never `NotImplemented`
+ * (the contract does list the method).
+ */
+interface SealedReader {
+    fun configure(allowPlainFallback: Boolean, plainStringsKey: String?)
+    fun bytes(key: String): ByteArray
+    fun string(key: String): String?
+}
+
+/**
+ * A [SealedReader] call failed with this stable bridge error code (contracts/sdk/hybrid-bridge-v1.json:
+ * `ChannelError`, `AssetNotFound`, `InvalidArgument`). The reader throws this instead of the SDK's own
+ * `SentomaruSealedException` so that this file never imports `sdk/android/sealed`; the layer that wires a real
+ * reader (the only place that does) catches the SDK's exception and rethrows it as this one.
+ */
+class SealedReadError(val code: String, message: String) : Exception(message)
+
+/**
  * D-22a1: the native side of the bridge, shared by the Flutter plugin and the hybrid layers (React Native, Capacitor,
  * MAUI). Moved from `SentomaruFlutterPlugin` without a change of behaviour: the layer only turns its framework's call
  * and reply into [BridgeCall] and [BridgeResult]. Purely cryptographic background execution; strictly no biometric
  * prompts (Decision E4 / FLT-8).
  */
-class SentomaruBridge(private val feed: SignalEventFeed) {
+class SentomaruBridge(private val feed: SignalEventFeed, private val sealed: SealedReader? = null) {
     /** The application context the layer attached; null while detached (`NoActivity`). */
     @Volatile var context: Context? = null
 
@@ -56,6 +79,8 @@ class SentomaruBridge(private val feed: SignalEventFeed) {
     private class Native(val client: SentomaruClient, val transport: EnrollmentTransport, val reattestation: SentomaruReattestation?)
 
     @Volatile private var native: Native? = null
+    /** Set by the first accepted `initialize`, read and (if still null) written only on [executor]: see [InitializeSecurityLock]. */
+    @Volatile private var securityLock: InitializeSecurityLock? = null
 
     /** D-26 (Flutter): the initialized client, for the layer's own Flutter-only methods; null before `initialize`. */
     val client: SentomaruClient? get() = native?.client
@@ -68,7 +93,8 @@ class SentomaruBridge(private val feed: SignalEventFeed) {
     private val reattestExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    /** Every method of the contract except the framework-specific ones (`scaffoldInfo`, the sealed reader). */
+    /** Every method of the contract except the framework-specific one (`scaffoldInfo`). The sealed reader (`sealed*`)
+     * answers `ConfigurationError` when the layer wired none: see [SealedReader]. */
     fun onMethodCall(call: BridgeCall, result: BridgeResult) {
         when (call.method) {
             "initialize" -> handleInitialize(call, result)
@@ -85,6 +111,9 @@ class SentomaruBridge(private val feed: SignalEventFeed) {
             "reattestationDue" -> handleReattestationDue(result)
             "reattestIfDue" -> handleReattestIfDue(call, result, ignoreLocalWait = false)
             "reattest" -> handleReattestIfDue(call, result, ignoreLocalWait = true)
+            "sealedConfigure" -> handleSealedConfigure(call, result)
+            "sealedLoad" -> handleSealedLoad(call, result)
+            "sealedString" -> handleSealedString(call, result)
             else -> result.notImplemented()
         }
     }
@@ -109,13 +138,20 @@ class SentomaruBridge(private val feed: SignalEventFeed) {
                 val config = PluginConfig.parse(call.argument<Any>("organization"), call.argument<Any>("app"),
                     call.argument<Any>("environment"), call.argument<Any>("enrollmentUrl"),
                     call.argument<Any>("allowedHosts"), call.argument<Any>("rotationGracePeriodDays"),
-                    call.argument<Any>("playIntegrityCloudProjectNumber"), call.argument<Any>("renewalUrl"))
+                    call.argument<Any>("playIntegrityCloudProjectNumber"), call.argument<Any>("renewalUrl"),
+                    call.argument<Any>("declaredEnforce"), call.argument<Any>("declaredInstallationResponse"))
+                val lock = securityLock
+                if (lock != null && !lock.allows(config)) {
+                    replyError(result, PluginConfig.ERROR_CODE, "Invalid or missing Sentomaru configuration", null)
+                    return@execute
+                }
                 val reattest = PluginConfig.parseReattestation(call.argument<Any>("reattestationChallengeUrl"),
                     call.argument<Any>("reattestationSubmitUrl"), call.argument<Any>("reattestationMinIntervalSeconds"))
                 val c = SentomaruClient.initialize(ctx, config)
                 // D-12e: built before anything is kept, so a refused route leaves the plugin as it was.
                 val r = reattest?.let { PluginConfig.reattestation(c, it) }
                 native = Native(c, EnrollmentTransport(config.allowedHosts), r)
+                if (lock == null) securityLock = InitializeSecurityLock(config)
                 replySuccess(result, null)
             } catch (e: PluginConfig.Invalid) {
                 replyError(result, PluginConfig.ERROR_CODE, "Invalid or missing Sentomaru configuration", null)
@@ -312,6 +348,53 @@ class SentomaruBridge(private val feed: SignalEventFeed) {
             }
         }
     }
+
+    private fun handleSealedConfigure(call: BridgeCall, result: BridgeResult) {
+        val reader = sealed ?: run { replyError(result, "ConfigurationError", "Sealed assets are not wired for this layer", null); return }
+        val allow = call.argument<Boolean>("allowPlainFallback")
+        val stringsKey = call.argument<String>("plainStringsKey")
+        if (allow == null || (stringsKey != null && !validSealedKey(stringsKey))) {
+            replyError(result, "InvalidArgument", "Invalid sealed configuration", null)
+            return
+        }
+        try {
+            reader.configure(allow, stringsKey) // synchronous and cheap: the next read sees it (as the Flutter plugin does)
+            replySuccess(result, null)
+        } catch (e: Exception) {
+            replyError(result, "ChannelError", "Native sealed configure failed", null)
+        }
+    }
+
+    private fun handleSealedLoad(call: BridgeCall, result: BridgeResult) = readSealed(call, result) { reader, key -> reader.bytes(key) }
+
+    private fun handleSealedString(call: BridgeCall, result: BridgeResult) = readSealed(call, result) { reader, key -> reader.string(key) }
+
+    /** One sealed read on [executor] (never the main thread: up to 4 MiB to decrypt and inflate), exactly like [handleSign]. */
+    private fun readSealed(call: BridgeCall, result: BridgeResult, read: (SealedReader, String) -> Any?) {
+        val reader = sealed ?: run { replyError(result, "ConfigurationError", "Sealed assets are not wired for this layer", null); return }
+        val key = call.argument<String>("key")
+        if (key == null || !validSealedKey(key)) {
+            replyError(result, "InvalidArgument", "Invalid sealed asset key", null)
+            return
+        }
+        executor.execute {
+            try {
+                replySuccess(result, read(reader, key))
+            } catch (e: SealedReadError) {
+                replyError(result, e.code, e.message, null)
+            } catch (e: Exception) {
+                replyError(result, "ChannelError", "Native sealed read failed", null)
+            } catch (e: OutOfMemoryError) {
+                // Up to 4 MiB compressed plus the plaintext in memory: on a small heap the read fails, the app does not.
+                replyError(result, "ChannelError", "Native sealed read out of memory", null)
+            }
+        }
+    }
+
+    /** A sealed asset key: relative, non-empty, no empty, `.` or `..` segment (the same rule the Flutter reader uses).
+     * `internal`, not `private`, so each layer's own JVM test can check it directly (hybrid-core has no test of its own). */
+    internal fun validSealedKey(key: String): Boolean =
+        key.isNotEmpty() && key.length <= 512 && key.split('/').none { it.isEmpty() || it == "." || it == ".." }
 
     private fun handleCollectSignals(result: BridgeResult) {
         val ctx = context ?: run {
