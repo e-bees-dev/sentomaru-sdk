@@ -132,6 +132,22 @@ public sealed class SentomaruClientOptions
     public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromHours(1);
 
     /// <summary>
+    /// 4.20.0: what the consumer declares by configuration (<c>Sentomaru:HeartbeatFeatures:MetricsExported=true</c>, <c>…:MobileGate</c>, <c>…:RequireBinding</c>,
+    /// <c>…:Fraud</c>, <c>…:BindingTablePresent:{table}</c>), so a consumer declares without code. A member an <see cref="ISentomaruFeatureSource"/> fills wins over
+    /// the one here; a member left out of both is not sent ("not declared", never false). <c>FailOpen</c> is not declared here: the package always sends
+    /// <see cref="FailOpen"/>. Informational, like every heartbeat member: it never changes a decision.
+    /// </summary>
+    public ConsumerFeaturesDto HeartbeatFeatures { get; set; } = new();
+
+    /// <summary>
+    /// 4.19.0: named rule sets (<c>Sentomaru:OperationRules:{set}</c>) that pick the operation of a request from its JSON
+    /// body, for a route that covers several business actions. A route opts in with
+    /// <c>[SentomaruIntegrity("default_op", OperationRules = "set")]</c>; see <see cref="SentomaruOperationRules"/>. Set names
+    /// ignore case. Validated at startup in every environment.
+    /// </summary>
+    public Dictionary<string, List<SentomaruOperationRule>> OperationRules { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Number of retries on 503 Store Unavailable or transient transport failures. Defaults to 2.
     /// </summary>
     public int RetryCount { get; set; } = 2;
@@ -143,6 +159,8 @@ public sealed class SentomaruClientOptions
     public IReadOnlyList<string> Validate(bool isDevelopment)
     {
         var errors = new List<string>();
+        // 4.19.0: a broken rule set is refused in every environment and also with Enabled=false.
+        errors.AddRange(SentomaruOperationRules.Validate(OperationRules));
         if (!Enabled)
         {
             if (!isDevelopment && !DisabledAcknowledged)
@@ -163,6 +181,15 @@ public sealed class SentomaruClientOptions
         if (HeartbeatConsumer is not null && !System.Text.RegularExpressions.Regex.IsMatch(HeartbeatConsumer, @"\A[a-z][a-z0-9-]{0,39}\z"))
         {
             errors.Add("Sentomaru:HeartbeatConsumer must be lowercase letters, digits and hyphens, starting with a letter (40 characters at most).");
+        }
+        if (HeartbeatFeatures?.FailOpen is not null)
+        {
+            errors.Add("Sentomaru:HeartbeatFeatures:FailOpen is not declared by configuration: the heartbeat always sends Sentomaru:FailOpen.");
+        }
+        if (HeartbeatFeatures?.BindingTablePresent is { } tables &&
+            (tables.Count > 8 || tables.Keys.Any(k => !System.Text.RegularExpressions.Regex.IsMatch(k, @"\A[a-z0-9_-]{1,32}\z"))))
+        {
+            errors.Add("Sentomaru:HeartbeatFeatures:BindingTablePresent takes at most 8 table names of lowercase letters, digits, '_' and '-' (32 characters at most).");
         }
         // 4.8.0: HttpClient.Timeout and CancelAfter throw above int.MaxValue ms; nothing here needs minutes.
         if (Timeout > MaxTimeout)

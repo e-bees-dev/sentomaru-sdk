@@ -187,7 +187,7 @@ que traz o `<queries>` dos gerenciadores de root), então o manifesto mesclado d
 
 ```kotlin
 // android/app/build.gradle.kts
-dependencies { implementation("br.com.ebees.sentomaru:signals-rasp:0.2.0-rc.4") }
+dependencies { implementation("br.com.ebees.sentomaru:signals-rasp:0.2.0-rc.5") }
 ```
 
 Sem ele a checagem não roda e `root_artifacts` nunca dá `NOT_DETECTED` (`UNKNOWN` com `partial=root_package`, ou
@@ -283,6 +283,60 @@ await dio.post(url, data: body, options: Options(headers: {
 O id também pode ir em `extra['sentomaru_operation_id']`. O interceptor manda o id e os sinais ao núcleo nativo, que os
 assina (componentes opcionais, `contracts/p0-http-profile.md`); um id malformado é recusado antes do envio. Veja a nota
 de migração no `CHANGELOG.md` (sinais assinados mudam a leitura de `NOT_DETECTED` no servidor).
+
+## Assinatura de transação: inscrição pelo backend (`SentomaruTransactionKeys`, D-25)
+
+`SentomaruTransactionKeys` inscreve, consulta e revoga a chave transacional pelo **backend do integrador**, que repassa
+cada pedido assinado pelo app ao Sentomaru (contrato `transaction-keys-v1`, seção 1). O app nunca fala direto com o
+Sentomaru. O `Dio` passado já tem o interceptor (`dio.addSentomaru(client)`) e `baseUrl` num host permitido; cada chamada
+é um `POST` com `extra['sentomaru_operation']` = `tx_key_challenge`, `tx_key_enroll`, `tx_key_status` ou
+`tx_key_revoke`, então o interceptor a assina com a chave da instalação.
+
+```dart
+final keys = SentomaruTransactionKeys(dio: dio); // caminhos configuráveis: challengePath, enrollPath, statusPath, revocationsPath
+
+final status = await keys.status();
+if (!status.acceptsPluginSignatures) {
+  // Servidor sem `signatureVersions` (anterior ao v2) ou sem `v2`: o plugin só emite v2, não peça a assinatura.
+}
+if (!status.enrolled) await keys.enroll(biometricOnly: true); // Android: biometric-strong; false = biometric-or-credential
+
+// Operação de negócio: corpo já codificado, o MESMO operationId em toda nova tentativa e uma assinatura nova por tentativa.
+final body = Uint8List.fromList(utf8.encode(jsonEncode(pagamento)));
+final extra = await keys.signedExtra(operationId: operationId, body: body, reason: 'Confirmar o pagamento', biometricOnly: true);
+await dio.post('/api/pagamentos', data: body, options: Options(extra: {'sentomaru_operation': 'pagar', ...extra}));
+
+await keys.revoke(); // 204 no backend, depois apaga a chave local
+```
+
+- `enroll` pede o desafio, cria uma chave **provisória** (a que assina não muda), envia `POST transaction-keys` e só
+  com `201` chama `commitKey`; qualquer falha depois de criar a chave chama `abortKey` e relança o erro. No Android o corpo
+  sai do lado nativo (cadeia de atestação contra o desafio; `strongBox` pede StrongBox). No iOS o corpo é
+  `{"challenge", "publicKey", "userAuthentication": "advisory-ios"}`, **sem** `attestationChain`: evidência consultiva,
+  que nunca satisfaz uma exigência de presença no servidor.
+- `signedExtra` devolve `sentomaru_tx_signature` e `sentomaru_operation_id` para o `extra`. Os bytes assinados têm de ser
+  exatamente os que o Dio envia: mande o corpo como os mesmos bytes (`Uint8List`); um `Map` é recodificado pelo
+  interceptor. Cada assinatura é de uso único (`409 tx-nonce-replay`) e vale 5 minutos (`401 tx-signature-stale`).
+- Erros HTTP são `SentomaruTransactionKeyException` (`statusCode`, `code` estável do corpo, `reason` do
+  `422 user-auth-not-proven`, `retryAfter` lido do `Retry-After` em segundos ou data HTTP, limitado a 1 s..24 h). O plugin
+  não repete sozinho: o app espera `retryAfter` antes de tentar de novo. Sem resposta, `code` é `transport` e `cause` traz
+  o erro original. Erros da chave nativa continuam `SentomaruTransactionException`.
+
+**Contrato que o backend expõe** (caminhos padrão; todos `POST`, corpo repassado sem alteração no envelope
+`{request, context?}` para `/v1/{org}/{app}/{env}/transaction-keys/...` do Sentomaru):
+
+| Caminho padrão no backend | Operação | Resposta ao app |
+|---|---|---|
+| `/api/v1/integridade/transaction-keys/challenges` | `tx_key_challenge` | `201`/`200 {challengeId, token, attestationChallenge, expiresAt}`; `429` com `Retry-After` |
+| `/api/v1/integridade/transaction-keys` | `tx_key_enroll` | `201 {txKeyId, userAuthentication, attestationStatus, enrolledAt}`; `422 {code, reason}` |
+| `/api/v1/integridade/transaction-keys/status` | `tx_key_status` | `200 {enrolled, txKeyId?, userAuthentication?, enrolledAt?, signatureVersions?}` |
+| `/api/v1/integridade/transaction-keys/revocations` | `tx_key_revoke` | `204` |
+
+O backend repassa o `code` do Sentomaru no corpo (o motivo do `422` vai em `attestationReason`) e o `Retry-After` no `429`.
+No ASP.NET Core, o adaptador 4.19 traz essas quatro ações protegidas na `SentomaruEnrollmentControllerBase`:
+`CreateTransactionKeyChallengeAsync`, `EnrollTransactionKeyAsync`, `GetTransactionKeyStatusAsync` e
+`RevokeTransactionKeyAsync`. O controlador do consumidor declara as rotas e chama a ação da base, como já faz com
+desafio, inscrição e renovação.
 
 ## Play Integrity (C-04b, plugin 0.4.0)
 

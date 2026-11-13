@@ -102,6 +102,43 @@ public abstract class SentomaruEnrollmentControllerBase(
         return Answer(result, "reattestation", StatusCodes.Status200OK);
     }
 
+    /// <summary>4.19.0 (D-25): forwards the app's signed <c>tx_key_challenge</c> (<see cref="ISentomaruClient.CreateTransactionKeyChallengeAsync"/>);
+    /// 201 a new challenge, 200 the live one.</summary>
+    protected Task<IActionResult> CreateTransactionKeyChallengeAsync(string? env, CancellationToken cancellationToken) =>
+        ForwardTransactionKeyAsync(env, (envelope, ct) => sentomaru.CreateTransactionKeyChallengeAsync(envelope, ct),
+            "transaction key challenge", StatusCodes.Status201Created, cancellationToken);
+
+    /// <summary>4.19.0 (D-25): forwards the app's signed <c>tx_key_enroll</c> (<see cref="ISentomaruClient.EnrollTransactionKeyAsync"/>);
+    /// a 422 <c>user-auth-not-proven</c> reaches the app with its <c>attestationReason</c>.</summary>
+    protected Task<IActionResult> EnrollTransactionKeyAsync(string? env, CancellationToken cancellationToken) =>
+        ForwardTransactionKeyAsync(env, (envelope, ct) => sentomaru.EnrollTransactionKeyAsync(envelope, ct),
+            "transaction key enrollment", StatusCodes.Status201Created, cancellationToken);
+
+    /// <summary>4.19.0 (D-25): forwards the app's signed <c>tx_key_status</c> (<see cref="ISentomaruClient.GetTransactionKeyStatusAsync"/>).</summary>
+    protected Task<IActionResult> GetTransactionKeyStatusAsync(string? env, CancellationToken cancellationToken) =>
+        ForwardTransactionKeyAsync(env, (envelope, ct) => sentomaru.GetTransactionKeyStatusAsync(envelope, ct),
+            "transaction key status", StatusCodes.Status200OK, cancellationToken);
+
+    /// <summary>4.19.0 (D-25): forwards the app's signed <c>tx_key_revoke</c> (<see cref="ISentomaruClient.RevokeTransactionKeyAsync"/>);
+    /// 204 without a body, also when there was no key.</summary>
+    protected async Task<IActionResult> RevokeTransactionKeyAsync(string? env, CancellationToken cancellationToken)
+    {
+        var answer = await ForwardTransactionKeyAsync(env, (envelope, ct) => sentomaru.RevokeTransactionKeyAsync(envelope, ct),
+            "transaction key revocation", StatusCodes.Status204NoContent, cancellationToken);
+        return answer is ObjectResult { Value: true, StatusCode: >= 200 and < 300 } ? NoContent() : answer;
+    }
+
+    private async Task<IActionResult> ForwardTransactionKeyAsync<T>(string? env,
+        Func<TransactionKeyEnvelopeDto, CancellationToken, Task<SentomaruClientResult<T>>> call, string what, int successStatus,
+        CancellationToken cancellationToken)
+    {
+        if (Gate(env) is { } refused) return refused;
+        var (message, failure) = await ExtractAsync(cancellationToken);
+        if (failure is not null) return failure;
+        var result = await call(new TransactionKeyEnvelopeDto { Request = message! }, cancellationToken);
+        return Answer(result, what, successStatus);
+    }
+
     private IActionResult? Gate(string? env)
     {
         var current = options.Value;
@@ -160,6 +197,9 @@ public abstract class SentomaruEnrollmentControllerBase(
             var reason = result.AttestationReason is { } r && CodeShape.IsMatch(r) ? r : "-";
             logger.LogWarning("Sentomaru refused the {What}: Status={Status}, Code={Code}, AttestationReason={AttestationReason}",
                 what, status, code, reason);
+            // 4.19.0: Sentomaru's wait (429) reaches the app, so the SDK waits that long instead of a fixed "not now".
+            if (result.RetryAfterSeconds is { } wait)
+                Response.Headers.RetryAfter = wait.ToString(System.Globalization.CultureInfo.InvariantCulture);
             return StatusCode(status, new SentomaruApiError { Code = code, AttestationReason = result.AttestationReason });
         }
         if (status is >= 400 and < 500)

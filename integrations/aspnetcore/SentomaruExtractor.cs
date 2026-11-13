@@ -104,30 +104,8 @@ public static class SentomaruExtractor
         }
 
         // 2. Read and Base64 encode the body (also when Content-Length is absent, e.g. chunked), capped at 64 KiB.
-        string base64Body = "";
-        if (request.Body is not null && request.ContentLength is not 0)
-        {
-            if (request.ContentLength > MaxBodyBytes)
-            {
-                throw new SentomaruBodyTooLargeException();
-            }
-            request.EnableBuffering();
-            request.Body.Position = 0;
-            using var memoryStream = new MemoryStream();
-            var buffer = new byte[8192];
-            int read;
-            while ((read = await request.Body.ReadAsync(buffer, cancellationToken)) > 0)
-            {
-                memoryStream.Write(buffer, 0, read);
-                if (memoryStream.Length > MaxBodyBytes)
-                {
-                    request.Body.Position = 0;
-                    throw new SentomaruBodyTooLargeException();
-                }
-            }
-            request.Body.Position = 0;
-            base64Body = Convert.ToBase64String(memoryStream.ToArray());
-        }
+        var body = await ReadBodyAsync(request, cancellationToken);
+        var base64Body = body.Length == 0 ? "" : Convert.ToBase64String(body);
 
         // 3. Forward only the allowlisted headers
         var headers = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
@@ -147,6 +125,50 @@ public static class SentomaruExtractor
             Headers = headers,
             Body = base64Body
         };
+    }
+
+    // 4.19.0: the body read once per request and stream, shared by the operation rules and the forwarded message.
+    private const string BodyItem = "sentomaru-body";
+
+    private sealed record BufferedBody(Stream Source, byte[]? Bytes);
+
+    /// <summary>
+    /// 4.19.0: the request body, read at most once per request (the bytes are kept in <see cref="HttpContext.Items"/> for the
+    /// same body stream): the operation rules and the forwarded message see the same bytes. Same limits as before:
+    /// <see cref="SentomaruBodyTooLargeException"/> above <see cref="MaxBodyBytes"/>, the stream buffered
+    /// (<c>EnableBuffering</c>) and rewound for the action.
+    /// </summary>
+    internal static async Task<byte[]> ReadBodyAsync(HttpRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Body is null || request.ContentLength is 0) return [];
+        if (request.ContentLength > MaxBodyBytes)
+        {
+            throw new SentomaruBodyTooLargeException();
+        }
+        var items = request.HttpContext.Items;
+        if (items.TryGetValue(BodyItem, out var cached) && cached is BufferedBody known && ReferenceEquals(known.Source, request.Body))
+        {
+            return known.Bytes ?? throw new SentomaruBodyTooLargeException();
+        }
+        request.EnableBuffering();
+        request.Body.Position = 0;
+        using var memoryStream = new MemoryStream();
+        var buffer = new byte[8192];
+        int read;
+        while ((read = await request.Body.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            memoryStream.Write(buffer, 0, read);
+            if (memoryStream.Length > MaxBodyBytes)
+            {
+                request.Body.Position = 0;
+                items[BodyItem] = new BufferedBody(request.Body, null);
+                throw new SentomaruBodyTooLargeException();
+            }
+        }
+        request.Body.Position = 0;
+        var bytes = memoryStream.ToArray();
+        items[BodyItem] = new BufferedBody(request.Body, bytes);
+        return bytes;
     }
 
     private static bool FromKnownProxy(HttpRequest request, SentomaruClientOptions? options)

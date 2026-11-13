@@ -26,7 +26,7 @@ allprojects {
     // ./gradlew --write-locks :app:assembleDebug.
     dependencyLocking { lockAllConfigurations() }
     repositories {
-        // The native SDK AARs (version 0.2.0-rc.4), built from sdk/android into build/repo; only this group comes from here.
+        // The native SDK AARs (version 0.2.0-rc.5), built from sdk/android into build/repo; only this group comes from here.
         exclusiveContent {
             forRepository { maven { url = uri(rootProject.file("../../../android/build/repo")) } }
             filter { includeGroup("br.com.ebees.sentomaru") }

@@ -16,6 +16,7 @@ export 'src/sentomaru_routes.dart';
 export 'src/sentomaru_sealed.dart';
 export 'src/sentomaru_offline_chain.dart';
 export 'src/sentomaru_transaction.dart';
+export 'src/sentomaru_transaction_keys.dart';
 export 'src/signal_events.dart';
 export 'src/signals_snapshot.dart';
 export 'src/user_message.dart';

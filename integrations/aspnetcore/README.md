@@ -50,6 +50,77 @@ do `HttpClient` também para a inscrição. Os dois têm teto de 5 min, conferid
 
 `DeviceAssuranceLevel.Observe` (antigo `DeviceTrustLevel.Observe`/`RuntimeTrust`) é **só telemetria e não oferece proteção**: a action sempre roda; se houver prova ela é avaliada e o veredito vai para o log. Nunca é padrão (`ZeroTrust` é); declare-o explicitamente só em operações conscientemente desprotegidas. `Enabled: false` desliga a verificação: em `Development` com aviso; fora dele só com `DisabledAcknowledged: true` (log Error), caso contrário o host não sobe e, se a validação for contornada, o filtro responde 503.
 
+## 4.20.0 — declaração do heartbeat por configuração (só acréscimo; não publicado)
+
+- `Sentomaru:HeartbeatFeatures` declara o que o consumidor ligou **sem código**: `MobileGate`, `RequireBinding`, `Fraud`, `MetricsExported` e
+  `BindingTablePresent:{tabela}` (no máximo 8 nomes `[a-z0-9_-]{1,32}`). Exemplo por variável de ambiente:
+  `Sentomaru__HeartbeatFeatures__MetricsExported=true`.
+- Um `ISentomaruFeatureSource` continua opcional; o que ele preencher vence a configuração. O que nenhum dos dois declarar não é enviado
+  (a Prontidão mostra "desconhecido", nunca "desligado").
+- `FailOpen` não se declara aqui (a validação recusa): o heartbeat sempre envia `Sentomaru:FailOpen`.
+
+## 4.19.0 — repasse da chave transacional (só acréscimos; não publicado)
+
+- `ISentomaruClient.CreateTransactionKeyChallengeAsync`, `EnrollTransactionKeyAsync`, `GetTransactionKeyStatusAsync` e
+  `RevokeTransactionKeyAsync` (padrão: 501 `not-implemented`) com `TransactionKeyEnvelopeDto` (`{request, context?}`) e os DTOs de resposta.
+  Postam o envelope em `POST …/transaction-keys/challenges`, `…/transaction-keys`, `…/transaction-keys/status` e
+  `…/transaction-keys/revocations` (contrato `contracts/api/transaction-keys-v1.md`), com o mesmo JSON estrito, credencial e mapa de erros da
+  reatestação. O app assina o pedido com `x-sentomaru-operation` = `tx_key_challenge`, `tx_key_enroll`, `tx_key_status` ou `tx_key_revoke`.
+- `SentomaruClientResult.RetryAfterSeconds`: o `Retry-After` de uma recusa (o 429 após 8 desafios em 24 h), de 1 s a 24 h; nulo se ausente.
+  O motivo do 422 `user-auth-not-proven` vem em `AttestationReason`, como no corpo do servidor.
+- `SentomaruEnrollmentControllerBase` ganha `CreateTransactionKeyChallengeAsync`, `EnrollTransactionKeyAsync`, `GetTransactionKeyStatusAsync`
+  e `RevokeTransactionKeyAsync`, uma linha por rota, como a reatestação. Chegam ao app o status, o `code`, o `attestationReason` do 422 e o
+  cabeçalho `Retry-After` do 429; o 503 `verifier-unavailable` também. A revogação responde 204 sem corpo. O resto segue a regra das
+  outras rotas (credencial do backend vira 502, indisponibilidade vira 503 `sentomaru-unavailable`).
+
+### Operação escolhida pelo corpo (OperationRules)
+
+Uma rota que cobre várias ações de negócio (por exemplo `PUT /api/PIM`, que salva, avança etapa e conclui a demanda) pode
+ser avaliada com operações diferentes conforme o corpo, para que a política exija a assinatura transacional só na conclusão.
+Quem escolhe é o servidor, pela configuração: o consumidor não escreve código nem tabela.
+
+```json
+"Sentomaru": {
+  "OperationRules": {
+    "pim-put": [
+      { "Pointer": "/etapaAtual", "Values": ["6"], "Operation": "concluir_demanda" },
+      { "Pointer": "/idStatusDemanda", "Values": ["7", "22"], "Operation": "concluir_demanda" }
+    ]
+  }
+}
+```
+
+```csharp
+[HttpPut("api/PIM")]
+[SentomaruIntegrity("atualizar_demanda", OperationRules = "pim-put")]
+public IActionResult Put([FromBody] DemandaDto dto) => ...;
+```
+
+- `Operation` do atributo é a operação padrão. A primeira regra do conjunto, na ordem configurada, cujo `Pointer` (JSON
+  Pointer, RFC 6901, também aninhado: `/demanda/status`, `/itens/0/etapa`) encontra um dos `Values` no corpo troca a operação
+  desta requisição. A operação escolhida é a avaliada, a gravada em `HttpContext.Items[SentomaruIntegrityAttribute.OperationItem]`,
+  a dos logs e a do gancho de step-up.
+- Comparação como texto: string JSON exata depois de `Trim`; número pelo valor invariante (`6`, `6.0`, `6e0`, `"6"` e `"06"`
+  casam com `"6"`, porque o ASP.NET lê número de string nos padrões web); `true`/`false` pelo literal. Objeto, lista e `null`
+  não casam.
+- Nome de propriedade sem diferença de maiúsculas (`EtapaAtual` casa com `/etapaAtual`), como o model binding. Propriedade
+  repetida, em qualquer caixa: basta **uma** ocorrência casar para a regra casar.
+- Corpo que não é JSON, não se lê, está vazio ou passa de 64 KiB escolhe a operação da **primeira** regra do conjunto (a
+  protegida), nunca a padrão. O corpo acima do limite continua 413 `body-limit`.
+- O corpo é lido uma vez por requisição (o mesmo buffer de `EnableBuffering` e o mesmo limite de 64 KiB do extrator) e volta
+  à posição zero para a action. Só o corpo é lido: valor na query string ou em cabeçalho não escolhe operação.
+- Partida (`ValidateOnStart`, em todos os ambientes, também com `Enabled: false`): conjunto vazio, `Values` vazio ou com valor
+  em branco, `Pointer` inválido (sem `/` inicial, segmento vazio, `~` fora de `~0`/`~1`) e `Operation` fora de
+  `^[a-z0-9_-]{2,32}$` impedem o host de subir. Atributo de controller MVC que cita conjunto inexistente também (a mensagem
+  diz a action). Fora do MVC, ou se a validação for contornada, o conjunto inexistente é 503 `integrity-unavailable`.
+  Nomes de conjunto ignoram maiúsculas.
+- **O app assina a operação escolhida.** O servidor confere que o `x-sentomaru-operation` assinado é a operação avaliada; se
+  o app assinar `atualizar_demanda` num corpo que conclui a demanda, a avaliação é 403 `operation-context` (falha fechada, sem
+  contornar a regra). O app, portanto, assina `concluir_demanda` quando conclui; as regras impedem que ele escape da operação
+  protegida, não dispensam o nome certo na assinatura.
+- Só no atributo e em `SentomaruEvaluationPipeline.DecideAsync` (`SentomaruEvaluationOptions.OperationRules`). O verificador de
+  gateway (D-17) não tem a opção: cada rota da tabela dele tem operação fixa.
+
 ## 4.17.0 — observação web pronta (só acréscimos; não publicado)
 
 Uma chamada de registro e uma linha no ponto onde o host já valida o desafio de bot (CAPTCHA/Turnstile/similar). Sem banco, sem migração, sem worker nem armazenamento próprio no host. Desligado por padrão: com `Enabled` falso nada é enviado nem gravado.

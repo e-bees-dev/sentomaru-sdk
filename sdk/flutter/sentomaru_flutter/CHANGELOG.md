@@ -1,3 +1,21 @@
+## 0.20.0-rc.5 (candidato)
+
+SDK Android `0.2.0-rc.5`, sem mudança no SDK nativo desde a rc.4. A numeração segue a série 0.20.0. Mudança de
+acréscimo: nenhuma API existente foi removida nem mudou de assinatura.
+
+**Novo no plugin**
+
+* `SentomaruTransactionKeys` (D-25): inscrição, estado e revogação da chave transacional pelo backend do integrador
+  (contrato `transaction-keys-v1`, seção 1), pelo `Dio` com o interceptor; cada pedido leva
+  `extra['sentomaru_operation']` (`tx_key_challenge`, `tx_key_enroll`, `tx_key_status`, `tx_key_revoke`). `enroll`
+  só confirma a chave provisória (`commitKey`) depois do `201` e a descarta (`abortKey`) em qualquer falha; no iOS
+  envia `advisory-ios` sem `attestationChain`. `status()` expõe `signatureVersions` (ausente = só v1) e
+  `acceptsPluginSignatures`, porque o plugin só emite v2. `signedExtra` devolve `sentomaru_tx_signature` e
+  `sentomaru_operation_id` para a chamada de negócio. Erros HTTP em `SentomaruTransactionKeyException` (`statusCode`,
+  `code`, `reason`, `retryAfter` lido do `Retry-After` em segundos ou data HTTP, 1 s..24 h); nada é repetido sozinho.
+  Testado no repositório (`test/sentomaru_transaction_keys_test.dart`, plataforma e adaptador HTTP falsos); não testado
+  em aparelho nem contra o backend real. README: "Assinatura de transação: inscrição pelo backend".
+
 ## 0.20.0-rc.4 (candidato)
 
 SDK Android `0.2.0-rc.4`. Traz a autodeclaração do app (`SentomaruConfig.declaredEnforce` e
@@ -22,7 +40,6 @@ seguro falsos); não testada em aparelho, contra servidor real nem pela troca ef
 * Duas dependências novas do pubspec: `flutter_secure_storage` (armazenamento do principal) e
   `shared_preferences` (cópia de reserva e marcador de reinstalação do iOS) — ambas sem código nativo próprio
   deste plugin, mesmas plataformas já suportadas.
-
 ## 0.20.0-rc.3 (candidato)
 
 Mesmo código da `0.20.0-rc.2`, com o SDK Android `0.2.0-rc.3`. O que muda é o que acompanha o release: o `verify_sdk.py` publicado exige

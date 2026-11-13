@@ -35,6 +35,7 @@ public sealed record ConsumerHeartbeatDto
 
 /// <summary>
 /// The consumer implements this to say what it turned on (its own flags: the package cannot know the gate or the fraud client of the host application).
+/// 4.20.0: optional; a consumer that only knows its flags as configuration declares them in <c>Sentomaru:HeartbeatFeatures</c> instead, with no code.
 /// Register it as a singleton. The package fills <see cref="ConsumerFeaturesDto.FailOpen"/> from its own options when the source leaves it null.
 /// </summary>
 public interface ISentomaruFeatureSource
@@ -78,7 +79,7 @@ public sealed class SentomaruHeartbeatService(ISentomaruClient client, IOptions<
         try
         {
             var features = source is null ? new ConsumerFeaturesDto() : await source.GetFeaturesAsync(ct);
-            features = features with { FailOpen = features.FailOpen ?? o.FailOpen };
+            features = Declared(features, o);
             var result = await client.SendHeartbeatAsync(new ConsumerHeartbeatDto { Consumer = o.HeartbeatConsumer!, Instance = SentomaruHeartbeat.InstanceId(o), Features = features }, ct);
             if (!result.Succeeded) logger.LogInformation("Sentomaru consumer heartbeat refused: {Status} {Code}", result.StatusCode, result.ErrorCode);
         }
@@ -86,6 +87,24 @@ public sealed class SentomaruHeartbeatService(ISentomaruClient client, IOptions<
         {
             logger.LogInformation(ex, "Sentomaru consumer heartbeat failed; it will be retried at the next interval");
         }
+    }
+
+    /// <summary>
+    /// 4.20.0: the source's members first, then <see cref="SentomaruClientOptions.HeartbeatFeatures"/> (configuration) for the ones it left null; FailOpen always
+    /// from the package's own option when the source leaves it null.
+    /// </summary>
+    internal static ConsumerFeaturesDto Declared(ConsumerFeaturesDto source, SentomaruClientOptions o)
+    {
+        var configured = o.HeartbeatFeatures ?? new ConsumerFeaturesDto();
+        return source with
+        {
+            MobileGate = source.MobileGate ?? configured.MobileGate,
+            RequireBinding = source.RequireBinding ?? configured.RequireBinding,
+            Fraud = source.Fraud ?? configured.Fraud,
+            MetricsExported = source.MetricsExported ?? configured.MetricsExported,
+            BindingTablePresent = source.BindingTablePresent ?? (configured.BindingTablePresent is { Count: > 0 } t ? t : null),
+            FailOpen = source.FailOpen ?? o.FailOpen,
+        };
     }
 
     private static async Task<bool> WaitAsync(PeriodicTimer timer, CancellationToken ct)

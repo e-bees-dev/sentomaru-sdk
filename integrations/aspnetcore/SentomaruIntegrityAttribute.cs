@@ -89,11 +89,21 @@ public sealed class SentomaruIntegrityAttribute : Attribute, IAsyncActionFilter
     /// </summary>
     public bool AllowOperationReplay { get; set; }
 
+    /// <summary>
+    /// 4.19.0: the name of a rule set in <c>Sentomaru:OperationRules</c>. With it, <see cref="Operation"/> is the default and
+    /// the first rule whose JSON pointer finds one of its values in the request body picks the operation evaluated (and
+    /// stored in <see cref="OperationItem"/>) for this request. A body that is not JSON, cannot be parsed or is over 64 KiB
+    /// picks the FIRST rule's operation, never the default. An unknown set fails at startup (ASP.NET Core MVC) and, if
+    /// that check is bypassed, answers 503 <c>integrity-unavailable</c>.
+    /// </summary>
+    public string? OperationRules { get; set; }
+
     /// <summary>HttpContext.Items keys set on an allowed evaluation that carried a signed operation id.</summary>
     public const string OperationIdItem = "sentomaru-operation-id";
     public const string FirstAdmissionItem = "sentomaru-first-admission";
 
-    /// <summary>4.14.0: HttpContext.Items key with the operation name of the route this filter protected (a string from the route's own declaration, never from the request).</summary>
+    /// <summary>4.14.0: HttpContext.Items key with the operation name of the route this filter protected (a string from the route's own declaration, never from the request).
+    /// 4.19.0: with <see cref="OperationRules"/>, the operation the rules chose (always one the configuration declares).</summary>
     public const string OperationItem = "sentomaru-operation";
 
     /// <summary>
@@ -140,8 +150,10 @@ public sealed class SentomaruIntegrityAttribute : Attribute, IAsyncActionFilter
         {
             AssuranceLevel = AssuranceLevel,
             AllowOperationReplay = AllowOperationReplay,
-            PublicBaseUrlOverride = PublicBaseUrlOverride
+            PublicBaseUrlOverride = PublicBaseUrlOverride,
+            OperationRules = OperationRules
         }, logger);
+        var operation = httpContext.Items[OperationItem] as string ?? Operation;
 
         if (decision.Kind == SentomaruDecisionKind.Refuse)
         {
@@ -168,11 +180,11 @@ public sealed class SentomaruIntegrityAttribute : Attribute, IAsyncActionFilter
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 var released = await client.ReleaseOperationAsync(evaluation.InstallationId, admittedId, timeout.Token);
                 if (!released.Succeeded)
-                    logger?.LogWarning("Sentomaru: could not release operation id for {Operation} ({Code}).", Operation, released.ErrorCode);
+                    logger?.LogWarning("Sentomaru: could not release operation id for {Operation} ({Code}).", operation, released.ErrorCode);
             }
             catch (Exception releaseError)
             {
-                logger?.LogWarning("Sentomaru: release of operation id for {Operation} failed: {Type}.", Operation, releaseError.GetType().Name);
+                logger?.LogWarning("Sentomaru: release of operation id for {Operation} failed: {Type}.", operation, releaseError.GetType().Name);
             }
         }
     }

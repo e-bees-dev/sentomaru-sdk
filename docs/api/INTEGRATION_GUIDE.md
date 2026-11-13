@@ -488,6 +488,12 @@ conscientemente desprotegidas (por exemplo, para medir antes de ligar a proteç�
 public IActionResult Get(string id) => Ok(new { id });
 ```
 
+**Uma rota, várias operações (4.19.0).** Quando a mesma rota faz ações de risco diferente (`PUT /api/PIM` salva ou
+conclui a demanda), `[SentomaruIntegrity("atualizar_demanda", OperationRules = "pim-put")]` com o conjunto
+`Sentomaru:OperationRules:pim-put` na configuração escolhe a operação pelo corpo JSON: a primeira regra que casa troca a
+operação padrão, e corpo ilegível escolhe a da primeira regra. O app assina a operação escolhida (`x-sentomaru-operation`);
+outra dá 403 `operation-context`. Detalhes no README do adaptador, seção "Operação escolhida pelo corpo (OperationRules)".
+
 ### 5a. Proteger no gateway, sem o adaptador (D-17)
 
 Para backend fora do ASP.NET Core, ou para proteger a borda sem mexer nele, o serviço

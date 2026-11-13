@@ -447,6 +447,11 @@ public sealed record SentomaruClientResult<T>
     public bool IsDegraded { get; private init; }
     public string? ErrorMessage { get; private init; }
 
+    /// <summary>4.19.0: the <c>Retry-After</c> of a refusal (Sentomaru sends it with 429), in seconds bounded to 1..86400; null when
+    /// absent, negative or unreadable. Filled by the transaction key methods (another <see cref="ISentomaruClient"/> sets it with
+    /// <c>with</c>); the controller base relays it to the app.</summary>
+    public int? RetryAfterSeconds { get; init; }
+
     public static SentomaruClientResult<T> Success(T value, int statusCode = 200, bool isDegraded = false) =>
         new()
         {

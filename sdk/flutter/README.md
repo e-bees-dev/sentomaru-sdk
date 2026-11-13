@@ -39,7 +39,7 @@ Desde 0.14.0 `SentomaruClient.signalEvents` entrega por opção eventos informat
 
 ## Build do plugin (SDK a partir do código, sem binários versionados)
 
-O plugin consome `br.com.ebees.sentomaru:{core,signals,sdk,sealed,signer}:0.2.0-rc.4` de um repositório Maven local gerado do código-fonte; não há AAR/JAR no git (the vendor's check no binaries check reprova). Antes de compilar um app hospedeiro (ExampleApp ou `sample/`):
+O plugin consome `br.com.ebees.sentomaru:{core,signals,sdk,sealed,signer}:0.2.0-rc.5` de um repositório Maven local gerado do código-fonte; não há AAR/JAR no git (the vendor's check no binaries check reprova). Antes de compilar um app hospedeiro (ExampleApp ou `sample/`):
 
 ```bash
 cd sdk/android && ./gradlew publishAllPublicationsToLocalRepoRepository   # -> sdk/android/build/repo

@@ -59,6 +59,34 @@ public interface ISentomaruClient
         Task.FromResult(SentomaruClientResult<ReattestationResponseDto>.Failure(501, "not-implemented"));
 
     /// <summary>
+    /// 4.19.0 (D-25): forwards the app's signed <c>tx_key_challenge</c> (POST transaction-keys/challenges): 201 a new challenge, 200 the
+    /// live one; 429 after 8 in 24 h with <see cref="SentomaruClientResult{T}.RetryAfterSeconds"/>. Default: not supported.
+    /// </summary>
+    Task<SentomaruClientResult<TransactionKeyChallengeResponseDto>> CreateTransactionKeyChallengeAsync(
+        TransactionKeyEnvelopeDto envelope, CancellationToken cancellationToken = default) =>
+        Task.FromResult(SentomaruClientResult<TransactionKeyChallengeResponseDto>.Failure(501, "not-implemented"));
+
+    /// <summary>
+    /// 4.19.0 (D-25): forwards the app's signed <c>tx_key_enroll</c> (POST transaction-keys). 422 <c>user-auth-not-proven</c> carries its
+    /// reason in <see cref="SentomaruClientResult{T}.AttestationReason"/> (the challenge is not consumed); 503 <c>verifier-unavailable</c>
+    /// may be retried. Default: not supported.
+    /// </summary>
+    Task<SentomaruClientResult<TransactionKeyEnrollmentResponseDto>> EnrollTransactionKeyAsync(
+        TransactionKeyEnvelopeDto envelope, CancellationToken cancellationToken = default) =>
+        Task.FromResult(SentomaruClientResult<TransactionKeyEnrollmentResponseDto>.Failure(501, "not-implemented"));
+
+    /// <summary>4.19.0 (D-25): forwards the app's signed <c>tx_key_status</c> (POST transaction-keys/status). Default: not supported.</summary>
+    Task<SentomaruClientResult<TransactionKeyStatusResponseDto>> GetTransactionKeyStatusAsync(
+        TransactionKeyEnvelopeDto envelope, CancellationToken cancellationToken = default) =>
+        Task.FromResult(SentomaruClientResult<TransactionKeyStatusResponseDto>.Failure(501, "not-implemented"));
+
+    /// <summary>4.19.0 (D-25): forwards the app's signed <c>tx_key_revoke</c> (POST transaction-keys/revocations): 204, also when there was
+    /// no key. Default: not supported.</summary>
+    Task<SentomaruClientResult<bool>> RevokeTransactionKeyAsync(
+        TransactionKeyEnvelopeDto envelope, CancellationToken cancellationToken = default) =>
+        Task.FromResult(SentomaruClientResult<bool>.Failure(501, "not-implemented"));
+
+    /// <summary>
     /// 4.4.0 (resposta por instalação): the state of an installation of the configured scope (GET installations/{id}):
     /// <c>active</c>, <c>suspended</c> or <c>revoked</c>. For a consumer that enforces the state of an installation it
     /// already verified (a session bound to it) on a request it cannot evaluate, such as a multipart upload the app does

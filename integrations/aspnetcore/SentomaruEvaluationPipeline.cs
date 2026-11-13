@@ -44,7 +44,8 @@ public enum SentomaruProceedReason
 /// <summary>
 /// 4.7.0 (D-17a): options of one decision, the members of <see cref="SentomaruIntegrityAttribute"/> without MVC.
 /// </summary>
-/// <param name="Operation">The operation of the route (never taken from the client).</param>
+/// <param name="Operation">The operation of the route (never taken from the client; 4.19.0: the default when
+/// <see cref="OperationRules"/> picks one of the configured operations from the body).</param>
 public sealed record SentomaruEvaluationOptions(string Operation)
 {
     /// <summary>Same as <see cref="SentomaruIntegrityAttribute.AssuranceLevel"/>.</summary>
@@ -62,6 +63,13 @@ public sealed record SentomaruEvaluationOptions(string Operation)
     /// <c>challenge-required</c>, as the attribute does without a hook.
     /// </summary>
     public bool UseChallengeHandler { get; init; } = true;
+
+    /// <summary>
+    /// 4.19.0: the name of a set in <see cref="SentomaruClientOptions.OperationRules"/>. With it, <see cref="Operation"/> is the
+    /// default and the first rule whose value matches the JSON body replaces it for this request (a body that cannot be
+    /// read or parsed picks the first rule's operation). Null (default) keeps <see cref="Operation"/>.
+    /// </summary>
+    public string? OperationRules { get; init; }
 }
 
 /// <summary>
@@ -124,11 +132,25 @@ public static class SentomaruEvaluationPipeline
     {
         ArgumentNullException.ThrowIfNull(httpContext);
         ArgumentNullException.ThrowIfNull(request);
-        var operation = request.Operation;
-        httpContext.Items[SentomaruIntegrityAttribute.OperationItem] = operation;
         var services = httpContext.RequestServices;
         var client = services.GetService<ISentomaruClient>();
         var options = services.GetService<IOptions<SentomaruClientOptions>>()?.Value ?? new SentomaruClientOptions();
+        if (request.OperationRules is { } setName)
+        {
+            // 4.19.0: the operation chosen from the body replaces the route's default for everything below (evaluation,
+            // OperationItem, logs, the step-up hook). An unknown or invalid set (startup validation bypassed) is a
+            // misconfiguration: never fails open.
+            if (SentomaruOperationRules.FindSet(options, setName) is not { Count: > 0 } rules ||
+                SentomaruOperationRules.Validate(new Dictionary<string, List<SentomaruOperationRule>> { [setName] = rules }).Count > 0)
+            {
+                httpContext.Items[SentomaruIntegrityAttribute.OperationItem] = request.Operation;
+                logger?.LogError("Sentomaru:OperationRules has no valid set {Set} (route {Operation}); refusing.", setName, request.Operation);
+                return Error(StatusCodes.Status503ServiceUnavailable, "integrity-unavailable");
+            }
+            request = request with { Operation = await SelectOperationAsync(httpContext, rules, request.Operation) };
+        }
+        var operation = request.Operation;
+        httpContext.Items[SentomaruIntegrityAttribute.OperationItem] = operation;
         var isDevelopment = services.GetService<IHostEnvironment>()?.IsDevelopment() == true;
 
         if (!options.Enabled)
@@ -404,6 +426,23 @@ public static class SentomaruEvaluationPipeline
                     ChallengeKind = value.Verdict == EvaluationVerdict.Challenge ? SentomaruChallengeKinds.Raw(value.ChallengeKind) : null
                 }
                 : new SentomaruObservation(result.StatusCode, result.ErrorCode, null, Guid.Empty);
+
+    /// <summary>4.19.0: the body is read through the extractor's buffer (once per request, same 64 KiB limit); over the
+    /// limit it is "unreadable", which picks the first rule's operation.</summary>
+    private static async Task<string> SelectOperationAsync(HttpContext httpContext, List<SentomaruOperationRule> rules, string defaultOperation)
+    {
+        ReadOnlyMemory<byte>? body;
+        try
+        {
+            body = await SentomaruExtractor.ReadBodyAsync(httpContext.Request, httpContext.RequestAborted);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Over the limit, or a read failure (the evaluation below meets it again and answers as before).
+            body = null;
+        }
+        return SentomaruOperationRules.Select(rules, body, defaultOperation);
+    }
 
     private static bool HasHeader(HttpRequest request, string name) =>
         request.Headers.TryGetValue(name, out var values) && values.Any(v => !string.IsNullOrWhiteSpace(v));

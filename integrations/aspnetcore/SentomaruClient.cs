@@ -194,6 +194,73 @@ public sealed class SentomaruClient : ISentomaruClient
         }
     }
 
+    public Task<SentomaruClientResult<TransactionKeyChallengeResponseDto>> CreateTransactionKeyChallengeAsync(
+        TransactionKeyEnvelopeDto envelope, CancellationToken cancellationToken = default) =>
+        PostTransactionKeyAsync("transaction-keys/challenges", envelope, Body<TransactionKeyChallengeResponseDto>(
+            v => v.ChallengeId != Guid.Empty && v.Token.Length > 0 && v.AttestationChallenge.Length > 0, cancellationToken), cancellationToken);
+
+    public Task<SentomaruClientResult<TransactionKeyEnrollmentResponseDto>> EnrollTransactionKeyAsync(
+        TransactionKeyEnvelopeDto envelope, CancellationToken cancellationToken = default) =>
+        PostTransactionKeyAsync("transaction-keys", envelope, Body<TransactionKeyEnrollmentResponseDto>(
+            v => v.TxKeyId != Guid.Empty && v.UserAuthentication.Length > 0, cancellationToken), cancellationToken);
+
+    public Task<SentomaruClientResult<TransactionKeyStatusResponseDto>> GetTransactionKeyStatusAsync(
+        TransactionKeyEnvelopeDto envelope, CancellationToken cancellationToken = default) =>
+        PostTransactionKeyAsync("transaction-keys/status", envelope, Body<TransactionKeyStatusResponseDto>(
+            v => !v.Enrolled || v.TxKeyId is { } id && id != Guid.Empty, cancellationToken), cancellationToken);
+
+    public Task<SentomaruClientResult<bool>> RevokeTransactionKeyAsync(
+        TransactionKeyEnvelopeDto envelope, CancellationToken cancellationToken = default) =>
+        PostTransactionKeyAsync("transaction-keys/revocations", envelope,
+            response => Task.FromResult(SentomaruClientResult<bool>.Success(true, (int)response.StatusCode)), cancellationToken);
+
+    /// <summary>4.19.0: a 2xx body checked like the reattestation's (missing or incomplete = 502 <c>invalid-response</c>).</summary>
+    private static Func<HttpResponseMessage, Task<SentomaruClientResult<T>>> Body<T>(Func<T, bool> valid,
+        CancellationToken cancellationToken) where T : class => async response =>
+    {
+        var value = await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken);
+        return value is null || !valid(value)
+            ? SentomaruClientResult<T>.Failure(502, "invalid-response",
+                message: "Upstream transaction key response missing or invalid required contract fields")
+            : SentomaruClientResult<T>.Success(value, (int)response.StatusCode);
+    };
+
+    /// <summary>4.19.0 (D-25): same strict JSON, credential and error mapping as the reattestation; a refusal also keeps its
+    /// <c>Retry-After</c> (<see cref="SentomaruClientResult{T}.RetryAfterSeconds"/>).</summary>
+    private async Task<SentomaruClientResult<T>> PostTransactionKeyAsync<T>(string endpoint, TransactionKeyEnvelopeDto envelope,
+        Func<HttpResponseMessage, Task<SentomaruClientResult<T>>> success, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+        var path = _options.BuildScopedPath(endpoint);
+        try
+        {
+            using var response = await PostJsonStrictAsync(path, envelope, cancellationToken);
+            if (response.IsSuccessStatusCode) return await success(response);
+            var (code, reason) = await ParseErrorAsync(response, cancellationToken);
+            return SentomaruClientResult<T>.Failure((int)response.StatusCode, code, reason) with { RetryAfterSeconds = RetryAfter(response) };
+        }
+        catch (Exception ex) when (IsTransientException(ex))
+        {
+            _logger.LogWarning(ex, "Transient error calling Sentomaru transaction key endpoint {Path}", path);
+            return SentomaruClientResult<T>.Failure(503, "store-unavailable", message: ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error calling Sentomaru transaction key endpoint {Path}", path);
+            return SentomaruClientResult<T>.Failure(500, "internal-error", message: ex.Message);
+        }
+    }
+
+    /// <summary>4.19.0: <c>Retry-After</c> as seconds (delta or HTTP date), 1..86400 (the largest wait Sentomaru sends is 24 h); null
+    /// when absent or in the past.</summary>
+    internal static int? RetryAfter(HttpResponseMessage response)
+    {
+        var header = response.Headers.RetryAfter;
+        var wait = header?.Delta ?? (header?.Date is { } at ? at - DateTimeOffset.UtcNow : null);
+        if (wait is not { } w || w < TimeSpan.Zero) return null;
+        return (int)Math.Clamp(Math.Ceiling(w.TotalSeconds), 1, 86_400);
+    }
+
     public async Task<SentomaruClientResult<FraudEvaluationResponseDto>> EvaluateFraudAsync(FraudEvaluationRequestDto request,
         CancellationToken cancellationToken = default)
     {

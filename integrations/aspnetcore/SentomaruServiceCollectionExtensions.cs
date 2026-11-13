@@ -25,6 +25,9 @@ public static class SentomaruServiceCollectionExtensions
         // FailOpen / http BaseAddress outside Development stop the host at startup instead of silently degrading.
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<SentomaruClientOptions>, SentomaruClientOptionsValidator>());
+        // 4.19.0: every [SentomaruIntegrity(OperationRules = "...")] names a configured set (every environment).
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<SentomaruClientOptions>, SentomaruOperationRulesValidator>());
         optionsBuilder.ValidateOnStart();
         services.TryAddSingleton<SentomaruNotices>();
 

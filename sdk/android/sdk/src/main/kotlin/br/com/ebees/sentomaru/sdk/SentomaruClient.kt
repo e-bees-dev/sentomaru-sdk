@@ -647,7 +647,7 @@ internal object EnrollmentBody {
  */
 internal object SdkModesJson {
     const val SDK = "sentomaru_android"
-    const val SDK_VERSION = "0.2.0-rc.4"
+    const val SDK_VERSION = "0.2.0-rc.5"
 
     fun encode(config: SentomaruConfig): String {
         val playIntegrity = if (config.playIntegrityCloudProjectNumber != null) "requested" else "not_configured"
