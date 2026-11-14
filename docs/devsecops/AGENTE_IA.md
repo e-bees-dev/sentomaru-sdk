@@ -96,14 +96,14 @@ Escopo do app no Sentomaru: {{org}}/{{app}}/{{env}}.
 
 Fontes, no repositório público e-bees-dev/sentomaru-sdk, no SHA de main que o operador indicar:
 - docs/api/INTEGRATION_GUIDE.md §4 e §7 (rotas de inscrição do backend e o que o app envia)
-- contracts/sdk/sdk-api-v1.md e sdk/android/README.md (módulos, SDK 0.2.0-rc.5, API do SDK)
+- contracts/sdk/sdk-api-v1.md e sdk/android/README.md (módulos, SDK 0.2.0-rc.6, API do SDK)
 - sdk/flutter/README.md (como gerar o repositório Maven local do SDK)
 - docs/devsecops/CLI_PIPELINE.md §2b (tabela de rotas em uma linha)
 Se não conseguir ler essas fontes, pare e me peça para autenticar o gh no seu terminal. Nunca me peça o token na
 conversa.
 
 Faça:
-1. Adicione br.com.ebees.sentomaru:sdk:0.2.0-rc.5. Ele não está no Maven Central: sai de um repositório Maven
+1. Adicione br.com.ebees.sentomaru:sdk:0.2.0-rc.6. Ele não está no Maven Central: sai de um repositório Maven
    local gerado do código (./gradlew publishAllPublicationsToLocalRepoRepository em sdk/android, como no
    sdk/flutter/README.md). Se não houver um repositório combinado com o operador, pare e pergunte. minSdk 28 e
    permissão INTERNET.

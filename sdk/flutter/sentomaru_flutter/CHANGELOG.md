@@ -1,3 +1,18 @@
+## 0.20.0-rc.6 (candidato)
+
+SDK Android `0.2.0-rc.6`. Corrige a inscrição da chave de transação no Android, que nunca funcionou contra o servidor real.
+
+**Corrigido**
+
+* `SentomaruTransactionKeys.enroll` no Android falhava sempre com `invalidRequest`: o servidor devolve `token` = o
+  `challengeId` em texto (contrato `transaction-keys-v1`, seção 1), e o SDK validava o desafio pelo tipo da inscrição
+  da instalação (`EnrollmentChallenge`, token de 32 bytes em Base64). Sem chave, nenhuma operação saía assinada. Achado
+  em aparelho contra o servidor real: status `200`, desafio `201`, recusa local antes do `POST transaction-keys`.
+* SDK Android: tipo novo `TransactionKeyChallenge` (token curto, só caracteres que não pedem escape em JSON, 1 a 128) e
+  `SentomaruTransactionSigner.prepareEnrollment(TransactionKeyChallenge, ...)`. A sobrecarga com `EnrollmentChallenge`
+  fica, obsoleta, e delega à nova. O teste do SDK usa a resposta no formato do servidor. iOS sem mudança: lá a
+  inscrição é `advisory-ios` e não lê o token.
+
 ## 0.20.0-rc.5 (candidato)
 
 SDK Android `0.2.0-rc.5`, sem mudança no SDK nativo desde a rc.4. A numeração segue a série 0.20.0. Mudança de

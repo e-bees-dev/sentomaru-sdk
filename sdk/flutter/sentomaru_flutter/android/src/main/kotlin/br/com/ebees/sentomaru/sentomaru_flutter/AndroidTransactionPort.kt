@@ -2,7 +2,7 @@ package br.com.ebees.sentomaru.sentomaru_flutter
 
 import androidx.fragment.app.FragmentActivity
 import br.com.ebees.sentomaru.core.SentomaruException
-import br.com.ebees.sentomaru.sdk.EnrollmentChallenge
+import br.com.ebees.sentomaru.sdk.TransactionKeyChallenge
 import br.com.ebees.sentomaru.sdk.SentomaruClient
 import br.com.ebees.sentomaru.sdk.SentomaruTransactionSigner
 import br.com.ebees.sentomaru.sdk.TransactionError
@@ -27,7 +27,7 @@ internal class AndroidTransactionPort(
     override fun createKey(challenge: SentomaruFlutterTransaction.Challenge, biometricOnly: Boolean, strongBox: Boolean): ByteArray {
         val expires: Instant = try { OffsetDateTime.parse(challenge.expiresAt).toInstant() }
         catch (_: DateTimeParseException) { throw IllegalArgumentException("expiresAt") }
-        val sdkChallenge = EnrollmentChallenge(challenge.id, challenge.token, challenge.attestationChallenge, expires)
+        val sdkChallenge = TransactionKeyChallenge(challenge.id, challenge.token, challenge.attestationChallenge, expires)
         return signer.prepareEnrollment(sdkChallenge, strongBox, biometricOnly)
     }
 

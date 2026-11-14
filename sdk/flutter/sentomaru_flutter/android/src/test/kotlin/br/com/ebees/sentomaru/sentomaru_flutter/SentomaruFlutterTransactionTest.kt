@@ -59,7 +59,7 @@ class SentomaruFlutterTransactionTest {
     }
 
     private val challengeMap = mapOf(
-        "challengeId" to "11111111-1111-4111-8111-111111111111", "token" to "dG9rZW4=",
+        "challengeId" to "11111111-1111-4111-8111-111111111111", "token" to "11111111-1111-4111-8111-111111111111",
         "attestationChallenge" to ByteArray(32) { 7 }, "expiresAt" to "2026-11-04T10:05:00+00:00",
     )
 
@@ -111,7 +111,7 @@ class SentomaruFlutterTransactionTest {
         assertArrayEquals("{}".toByteArray(), r.value as ByteArray)
         assertEquals(true, port.biometricOnly)
         assertEquals(false, port.strongBox)
-        assertEquals("dG9rZW4=", port.challenge!!.token)
+        assertEquals("11111111-1111-4111-8111-111111111111", port.challenge!!.token)
         assertEquals(32, port.challenge!!.attestationChallenge.size)
     }
 

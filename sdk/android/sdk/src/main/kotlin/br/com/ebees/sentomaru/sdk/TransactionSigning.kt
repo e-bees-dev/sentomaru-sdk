@@ -166,6 +166,21 @@ object TransactionSignature {
 }
 
 /**
+ * The answer of `POST transaction-keys/challenges` (contract `transaction-keys-v1` section 1). Unlike the installation
+ * [EnrollmentChallenge], [token] is the `challengeId` as text: the SDK sends it back as is in the enrollment body, so it only
+ * has to be short and free of characters that need JSON escaping. [attestationChallenge] is the 32 bytes the key attests.
+ */
+class TransactionKeyChallenge(val id: String, val token: String, attestationChallenge: ByteArray, val expiresAt: java.time.Instant) {
+    private val attestation = attestationChallenge.copyOf()
+    fun attestationChallenge(): ByteArray = attestation.copyOf()
+    init {
+        validateUuid(id)
+        require(token.length in 1..128 && token.all { it.isLetterOrDigit() && it.code < 128 || it in "-_+/=" } &&
+            attestation.size == 32) { "Invalid challenge" }
+    }
+}
+
+/**
  * D-25 slice (c): enrollment body of the transaction key and the per-operation signature.
  *
  * What a signature proves: a person who can unlock this device was present at the moment of signing. It does not prove
@@ -193,8 +208,19 @@ class SentomaruTransactionSigner @JvmOverloads constructor(
      * Generates the transaction key (replacing an old one) for [challenge] and returns the enrollment request body for
      * `POST transaction-keys` (contract `transaction-keys-v1`). [EnrollmentError.EnrollmentRequired] without a grant.
      */
+    /**
+     * The installation enrollment challenge has a 32-byte Base64 token and the transaction-key server never issues one: kept
+     * only so code built against rc.5 still compiles. Use the [TransactionKeyChallenge] overload.
+     */
+    @Deprecated("The transaction-key challenge is a TransactionKeyChallenge (token = challengeId)",
+        ReplaceWith("prepareEnrollment(TransactionKeyChallenge(challenge.id, challenge.token, challenge.attestationChallenge(), challenge.expiresAt), strongBox, strongBiometricOnly)"))
     @JvmOverloads
-    fun prepareEnrollment(challenge: EnrollmentChallenge, strongBox: Boolean = false, strongBiometricOnly: Boolean = true): ByteArray {
+    fun prepareEnrollment(challenge: EnrollmentChallenge, strongBox: Boolean = false, strongBiometricOnly: Boolean = true): ByteArray =
+        prepareEnrollment(TransactionKeyChallenge(challenge.id, challenge.token, challenge.attestationChallenge(), challenge.expiresAt),
+            strongBox, strongBiometricOnly)
+
+    @JvmOverloads
+    fun prepareEnrollment(challenge: TransactionKeyChallenge, strongBox: Boolean = false, strongBiometricOnly: Boolean = true): ByteArray {
         val base = baseAlias() ?: fail(EnrollmentError.EnrollmentRequired())
         // A key the server already holds is never touched here: the new one is made in the other slot and replaces it only in
         // [commitEnrollment], after the server accepted it. With no key yet the first slot is used and nothing is at risk.
@@ -299,14 +325,14 @@ class SentomaruTransactionSigner @JvmOverloads constructor(
         if (answer.status == 429 || answer.status >= 500) TransactionEnrollOutcome.Unavailable(answer.retryWaitSeconds)
         else TransactionEnrollOutcome.Refused(SentomaruWire.errorCode(answer.body.take(MAX_ANSWER_CHARS)) ?: UNEXPECTED, answer.status)
 
-    private fun parseChallenge(text: String): EnrollmentChallenge? {
+    private fun parseChallenge(text: String): TransactionKeyChallenge? {
         if (text.length > MAX_ANSWER_CHARS) return null
         return try {
             val id = ReattestationJson.string(text, "challengeId") ?: return null
             val token = ReattestationJson.string(text, "token") ?: return null
             val raw = Base64.getDecoder().decode(ReattestationJson.string(text, "attestationChallenge") ?: return null)
             val expires = java.time.OffsetDateTime.parse(ReattestationJson.string(text, "expiresAt") ?: return null).toInstant()
-            EnrollmentChallenge(id, token, raw, expires)
+            TransactionKeyChallenge(id, token, raw, expires)
         } catch (_: RuntimeException) { null } catch (_: SentomaruException) { null }
     }
 

@@ -36,7 +36,7 @@ enum EnrollmentBody {
 /// informational: never read back by the SDK itself.
 enum SdkModesJson {
     static let sdk = "sentomaru_ios"
-    static let sdkVersion = "0.2.0-rc.5"
+    static let sdkVersion = "0.2.0-rc.6"
 
     static func encode(_ config: SentomaruConfig) -> String {
         ",\"sdkModes\":{\"enforce\":\(config.declaredEnforce),\"installationResponse\":\(config.declaredInstallationResponse)," +

@@ -39,6 +39,14 @@ internal object G03Support {
         expiresAt = Instant.now().plusSeconds(300),
     )
 
+    /** The transaction-key challenge as the server issues it: `token` = `challengeId`. */
+    fun txChallenge() = br.com.ebees.sentomaru.sdk.TransactionKeyChallenge(
+        id = "44444444-5555-4666-8777-888888888888",
+        token = "44444444-5555-4666-8777-888888888888",
+        attestationChallenge = ByteArray(32) { 22 },
+        expiresAt = Instant.now().plusSeconds(300),
+    )
+
     fun grant() = EnrollmentGrant("88888888-9999-4aaa-8bbb-cccccccccccc", "33333333-4444-4555-8666-777777777777",
         "88888888-9999-4aaa-8bbb-cccccccccccc", "hardware", "verified")
 
@@ -50,7 +58,7 @@ internal object G03Support {
     val credentialMode: Boolean get() = InstrumentationRegistry.getArguments().getString("g03_credential") == "1"
 
     fun prepare(signer: br.com.ebees.sentomaru.sdk.SentomaruTransactionSigner): ByteArray =
-        signer.prepareEnrollment(challenge(), strongBox = false, strongBiometricOnly = !credentialMode)
+        signer.prepareEnrollment(txChallenge(), strongBox = false, strongBiometricOnly = !credentialMode)
 
     fun report(id: String, verdict: String, note: String = "") { Log.i(TAG, "$id $verdict $note".trim()) }
 

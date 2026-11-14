@@ -82,6 +82,8 @@ class TransactionSigningTest {
     private fun client() = SentomaruClient(config, installationKeys, state, clock)
     private fun challenge() = EnrollmentChallenge(UUID.randomUUID().toString(), Base64.getEncoder().encodeToString(ByteArray(32) { 1 }),
         ByteArray(32) { 8 }, now.plusSeconds(120))
+    /** The shape `POST transaction-keys/challenges` returns: `token` is the `challengeId` as text (contract section 1). */
+    private fun txChallenge(id: String = UUID.randomUUID().toString()) = TransactionKeyChallenge(id, id, ByteArray(32) { 8 }, now.plusSeconds(120))
     private fun enrolledClient(): SentomaruClient = client().also { c ->
         c.enroll(challenge()) { m -> EnrollmentGrant(UUID.randomUUID().toString(), m.header("x-sentomaru-session")!!, UUID.randomUUID().toString(), "hardware", "verified") }
     }
@@ -96,7 +98,7 @@ class TransactionSigningTest {
     }
 
     @Test fun theV1HeaderVerifiesWithThePublicKeyOverTheSpecifiedBytes() {
-        val s = signer(version = TransactionSignatureVersion.V1); s.prepareEnrollment(challenge())
+        val s = signer(version = TransactionSignatureVersion.V1); s.prepareEnrollment(txChallenge())
         val (value, error) = signed(s, Prompt())
         assertNull(error)
         val parts = value!!.split('.')
@@ -113,7 +115,7 @@ class TransactionSigningTest {
     }
 
     @Test fun theV2HeaderCarriesTheClockAndVerifiesOverTheV2Bytes() {
-        val s = signer(); s.prepareEnrollment(challenge())
+        val s = signer(); s.prepareEnrollment(txChallenge())
         val (value, error) = signed(s, Prompt())
         assertNull(error)
         val parts = value!!.split('.')
@@ -135,7 +137,7 @@ class TransactionSigningTest {
     // G-16: the version is NOT passed here, so this exercises the constructor default an app gets from `SentomaruTransactionSigner(client)`.
     @Test fun aSignerBuiltWithTheDefaultVersionEmitsV2() {
         val s = SentomaruTransactionSigner(enrolledClient(), txKeys, SecureRandom(), nowSeconds = { issuedAt }, onMainThread = { false })
-        s.prepareEnrollment(challenge())
+        s.prepareEnrollment(txChallenge())
         val (value, error) = signed(s, Prompt())
         assertNull(error)
         val parts = value!!.split('.')
@@ -147,7 +149,7 @@ class TransactionSigningTest {
     @Test fun aClockBeforeTheV2RangeIsRefusedAndNothingIsSigned() {
         val c = enrolledClient()
         val s = SentomaruTransactionSigner(c, txKeys, SecureRandom(), TransactionSignatureVersion.V2, { 0L }, { false })
-        s.prepareEnrollment(challenge())
+        s.prepareEnrollment(txChallenge())
         val (value, error) = signed(s, Prompt())
         assertNull(value)
         assertTrue(error is TransactionError.SigningFailed)
@@ -196,7 +198,7 @@ class TransactionSigningTest {
     }
 
     @Test fun everyHeaderHasTheProfileGrammarAndNoncesDiffer() {
-        val s = signer(); s.prepareEnrollment(challenge())
+        val s = signer(); s.prepareEnrollment(txChallenge())
         val a = signed(s, Prompt()).first!!; val b = signed(s, Prompt()).first!!
         assertNotEquals(a, b)
         val rule = Regex("""\Asentomaru-tx-v2\.[A-Za-z0-9_-]{22}\.[0-9]{10}\.[A-Za-z0-9_-]{86}\z""") // the core rule, MessageRules
@@ -204,7 +206,7 @@ class TransactionSigningTest {
     }
 
     @Test fun cancelIsRecoverableAndLeavesTheInstallationAlone() {
-        val c = enrolledClient(); val s = signer(c); s.prepareEnrollment(challenge())
+        val c = enrolledClient(); val s = signer(c); s.prepareEnrollment(txChallenge())
         val writes = state.writes; val record = state.value; val keysBefore = installationKeys.keys.keys.toSet()
         for (cancel in listOf(BiometricErrors.map(10), BiometricErrors.map(13))) {
             val (value, error) = signed(s, Prompt(cancel))
@@ -230,7 +232,7 @@ class TransactionSigningTest {
         val s = signer(); val prompt = Prompt()
         assertEquals("TxNotEnrolled", signed(s, prompt).second!!.code)
         assertFalse(s.isEnrolled())
-        s.prepareEnrollment(challenge()); assertTrue(s.isEnrolled())
+        s.prepareEnrollment(txChallenge()); assertTrue(s.isEnrolled())
         txKeys.invalidated = true
         val (value, error) = signed(s, prompt)
         assertNull(value); assertEquals("TxKeyInvalidated", error!!.code); assertFalse(error.recoverable)
@@ -241,19 +243,21 @@ class TransactionSigningTest {
 
     @Test fun enrollmentBodyCarriesKeyChainAndTheAuthenticationClassOnly() {
         val s = signer()
-        val text = String(s.prepareEnrollment(challenge()), Charsets.UTF_8)
-        assertTrue(text, Regex("""\A\{"challenge":"[A-Za-z0-9+/=]+","publicKey":"[A-Za-z0-9+/=]+","attestationChain":\["[A-Za-z0-9+/=]+","[A-Za-z0-9+/=]+"],"userAuthentication":"biometric-strong"}\z""").matches(text))
-        assertTrue(String(s.prepareEnrollment(challenge(), strongBiometricOnly = false)).contains("\"biometric-or-credential\""))
+        val text = String(s.prepareEnrollment(txChallenge()), Charsets.UTF_8)
+        assertTrue(text, Regex("""\A\{"challenge":"[0-9a-f-]{36}","publicKey":"[A-Za-z0-9+/=]+","attestationChain":\["[A-Za-z0-9+/=]+","[A-Za-z0-9+/=]+"],"userAuthentication":"biometric-strong"}\z""").matches(text))
+        assertTrue(String(s.prepareEnrollment(txChallenge(), strongBiometricOnly = false)).contains("\"biometric-or-credential\""))
         assertEquals(false, txKeys.lastAuth)
         s.discard(); assertFalse(s.isEnrolled())
     }
 
     @Test fun enrollmentNeedsAnEnrolledInstallation() {
-        val e = assertThrows(SentomaruException::class.java) { SentomaruTransactionSigner(client(), txKeys).prepareEnrollment(challenge()) }
+        val e = assertThrows(SentomaruException::class.java) { SentomaruTransactionSigner(client(), txKeys).prepareEnrollment(txChallenge()) }
         assertEquals("EnrollmentRequired", e.error.code)
     }
 
-    private val challengeJson = "{\"challengeId\":\"${UUID.randomUUID()}\",\"token\":\"${Base64.getEncoder().encodeToString(ByteArray(32) { 3 })}\"," +
+    private val challengeId = UUID.randomUUID().toString()
+    // What TransactionKeyEndpoints returns: token = challengeId.ToString("D"). rc.5 refused this token (it wanted 32 Base64 bytes).
+    private val challengeJson = "{\"challengeId\":\"$challengeId\",\"token\":\"$challengeId\"," +
         "\"attestationChallenge\":\"${Base64.getEncoder().encodeToString(ByteArray(32) { 8 })}\",\"expiresAt\":\"2026-11-04T12:02:00Z\"}"
     private val urls = "https://consumer.example/tx/challenges" to "https://consumer.example/tx"
 
@@ -267,7 +271,27 @@ class TransactionSigningTest {
         assertTrue(out is TransactionEnrollOutcome.Enrolled)
         assertEquals(listOf("tx_key_challenge", "tx_key_enroll"), sent.map { it.header("x-sentomaru-operation") })
         assertTrue(String(sent[1].body()).contains("\"userAuthentication\":\"biometric-strong\""))
+        assertTrue(String(sent[1].body()).startsWith("{\"challenge\":\"$challengeId\","))
         assertTrue(s.isEnrolled())
+    }
+
+    @Test fun theServerChallengeTokenGoesBackAsIs() {
+        val id = UUID.randomUUID().toString()
+        assertTrue(String(signer().prepareEnrollment(txChallenge(id)), Charsets.UTF_8).startsWith("{\"challenge\":\"$id\","))
+    }
+
+    @Test fun aChallengeTokenThatWouldBreakTheJsonIsRefused() {
+        val id = UUID.randomUUID().toString()
+        for (bad in listOf("", "a\"b", "a\\b", "x".repeat(129), "ação")) {
+            assertThrows(bad, IllegalArgumentException::class.java) { TransactionKeyChallenge(id, bad, ByteArray(32), now) }
+        }
+        assertThrows(IllegalArgumentException::class.java) { TransactionKeyChallenge(id, id, ByteArray(31), now) }
+    }
+
+    @Suppress("DEPRECATION")
+    @Test fun theOldOverloadStillTakesAnInstallationShapedChallenge() {
+        val text = String(signer().prepareEnrollment(challenge()), Charsets.UTF_8)
+        assertTrue(text, text.startsWith("{\"challenge\":\"${Base64.getEncoder().encodeToString(ByteArray(32) { 1 })}\","))
     }
 
     @Test fun aRefusedEnrollmentRemovesTheNewKey() {
@@ -328,7 +352,7 @@ class TransactionSigningTest {
     }
 
     @Test fun aRefusedReenrollmentKeepsTheKeyTheServerHolds() {
-        val s = signer(); s.prepareEnrollment(challenge())
+        val s = signer(); s.prepareEnrollment(txChallenge())
         val before = txKeys.keys.entries.single().let { it.key to it.value }
         val out = enrollWith(s) { TransactionAnswer(422, "{\"code\":\"user-auth-not-proven\"}") }
         assertTrue(out is TransactionEnrollOutcome.Refused)
@@ -339,7 +363,7 @@ class TransactionSigningTest {
     }
 
     @Test fun aNetworkFailureDuringReenrollmentKeepsTheOldKey() {
-        val s = signer(); s.prepareEnrollment(challenge())
+        val s = signer(); s.prepareEnrollment(txChallenge())
         val old = txKeys.keys.values.single()
         assertTrue(enrollWith(s) { throw java.io.IOException("down") } is TransactionEnrollOutcome.Unavailable)
         assertTrue(enrollWith(s) { TransactionAnswer(503, "") } is TransactionEnrollOutcome.Unavailable)
@@ -349,7 +373,7 @@ class TransactionSigningTest {
     }
 
     @Test fun anAcceptedReenrollmentReplacesTheKeyOnlyAfterTheAnswer() {
-        val s = signer(); s.prepareEnrollment(challenge())
+        val s = signer(); s.prepareEnrollment(txChallenge())
         val old = txKeys.keys.values.single()
         var duringSubmit = 0
         val out = enrollWith(s) { duringSubmit = txKeys.keys.size; TransactionAnswer(201, accepted) }
@@ -365,9 +389,9 @@ class TransactionSigningTest {
     }
 
     @Test fun whileTheNewKeyIsPendingTheOlderOneStillSigns() {
-        val s = signer(); s.prepareEnrollment(challenge())
+        val s = signer(); s.prepareEnrollment(txChallenge())
         val old = txKeys.keys.values.single()
-        s.prepareEnrollment(challenge())          // pending: not committed (for example the process died here)
+        s.prepareEnrollment(txChallenge())          // pending: not committed (for example the process died here)
         assertEquals(2, txKeys.keys.size)
         assertTrue(verifies(signed(s, Prompt()).first!!, old))
         s.abortEnrollment()
@@ -375,19 +399,19 @@ class TransactionSigningTest {
     }
 
     @Test fun commitDropsTheOlderOfTwoAndDiscardDropsBoth() {
-        val s = signer(); s.prepareEnrollment(challenge())
-        s.prepareEnrollment(challenge()); val fresh = txKeys.keys.values.maxBy { txKeys.createdAt(txKeys.keys.entries.first { e -> e.value === it }.key) }
+        val s = signer(); s.prepareEnrollment(txChallenge())
+        s.prepareEnrollment(txChallenge()); val fresh = txKeys.keys.values.maxBy { txKeys.createdAt(txKeys.keys.entries.first { e -> e.value === it }.key) }
         s.commitEnrollment()
         assertEquals(1, txKeys.keys.size); assertSame(fresh, txKeys.keys.values.single())
-        s.prepareEnrollment(challenge()); assertEquals(2, txKeys.keys.size)
+        s.prepareEnrollment(txChallenge()); assertEquals(2, txKeys.keys.size)
         s.discard(); assertTrue(txKeys.keys.isEmpty()); assertFalse(s.isEnrolled())
     }
 
     @Test fun aFailedGenerationLeavesTheLiveKeyAlone() {
-        val s = signer(); s.prepareEnrollment(challenge())
+        val s = signer(); s.prepareEnrollment(txChallenge())
         val old = txKeys.keys.values.single()
         txKeys.failNextGenerate = true
-        assertThrows(IllegalStateException::class.java) { s.prepareEnrollment(challenge()) }
+        assertThrows(IllegalStateException::class.java) { s.prepareEnrollment(txChallenge()) }
         assertEquals(1, txKeys.keys.size)
         assertTrue(verifies(signed(s, Prompt()).first!!, old))
     }
